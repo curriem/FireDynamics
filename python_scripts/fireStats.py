@@ -27,20 +27,28 @@ def loadData(filePath):
     data = np.load(filePath)
     return data
 
-def plotStat(stat, title=None):
+def plotStat(stat, title=None, save=False, savePath=None):
     """ plots a timeseries of a given statistic
     
     Inputs:
     ----------
     stat
         (1d numpy array) a timeseries of a given statistic
+    title
+        (str) title for the plot
+    save
+        (bool) if true, it saves the plot
+    savePath
+        (str) path to save to 
         
     """
     plt.figure()
     plt.plot(range(len(stat)), stat)
     plt.title(title)
-    plt.ylabel('statistic')
-    plt.xlabel('time')
+    plt.ylabel('Statistic')
+    plt.xlabel('Frame')
+    if save:    
+        plt.savefig(savePath)
     plt.show()
     
 
@@ -171,41 +179,51 @@ def makeHist(counts, numBins, save=False, savePath=None):
     plt.show()
 
 def main():
-    
+    fireNum = 3
+    filePath = '/Users/mcurrie/FireDynamics/data/f%i/f%i_dataCube.npy'%(fireNum, fireNum)
     #filePath = '/Users/mcurrie/FireDynamics/data/CA/CA_prob=0.5_N=1000_lag=3_layers=2.npy'
-    filePath = '/Users/mcurrie/FireDynamics/data/CA/CA_prob=0.5_N=1000_lag=2_layers=2.npy'
+    #filePath = '/Users/mcurrie/FireDynamics/data/CA/CA_prob=0.5_N=1000_lag=2_layers=2.npy'
+    savePath = '/Users/mcurrie/repositories/FireDynamics/plots/'
     data = loadData(filePath)
-    realData=False
+    realData=True
     plotting=True
+    save=True
     tempThresh = 500.
+    
     
     if realData:
     
         maxTemp, maxTempTimeseries, minTemp, minTempTimeseries, \
             meanTemp, meanTempTimeseries, medianTemp, medianTempTimeseries, \
             stdTemp, stdTempTimeseries = tempStats(data)
-        
+        print 'Max Temp:', maxTemp
+        print 'Min Temp:', minTemp
+        print 'Mean Temp:', meanTemp
+        print 'Median Temp:', medianTemp
+        print 'Standard Dev:', stdTemp
         # plotting the statistics
-        plotStat(maxTempTimeseries, 'max temp, overall max = %f'%maxTemp)
-        plotStat(minTempTimeseries, 'min temp, overall min = %f'%minTemp)
-        plotStat(meanTempTimeseries, 'mean temp, overall mean = %f'%meanTemp)
-        plotStat(medianTempTimeseries, 'median temp, overall median = %f'%medianTemp)
-        plotStat(stdTempTimeseries, 'std temp, overall std = %f'%stdTemp)
+        if plotting:
+            plotStat(maxTempTimeseries, 'Maximum Temperature by Frame', save, savePath+'f%i_maxtemp.pdf'%fireNum)
+            plotStat(minTempTimeseries, 'Minimum Temperature by Frame'%minTemp, save, savePath+'f%i_mintemp.pdf'%fireNum)
+            plotStat(meanTempTimeseries, 'Mean Temperature by Frame'%meanTemp,save, savePath+'f%i_meantemp.pdf'%fireNum)
+            plotStat(medianTempTimeseries, 'Median Temperature by Frame'%medianTemp, save, savePath+'f%i_mediantemp.pdf'%fireNum)
+            plotStat(stdTempTimeseries, 'Standard Deviation of Temperature by Frame'%stdTemp, save, savePath+'f%i_stdtemp.pdf'%fireNum)
     
     # Make histogram
-    numLayers = 2
-    numBins = (2*numLayers+1)**2
-    counts = np.array([0])
-    for n in range(len(data))[:-1]:
-        if plotting:
-            plotFrame(data[n])
-        newFireCoords = np.array(np.where(data[n+1] == 1))
-        neighborsOnFire = getNeighbors(data[n], newFireCoords, numLayers)
-        counts = np.concatenate((counts, neighborsOnFire))
-        
-    assert len(counts) < data[0].shape[0]**2
-    
-    makeHist(counts, numBins)#, save=True, savePath = '/Users/mcurrie/FireDynamics/data/CA/test')
+    else:
+        numLayers = 2
+        numBins = (2*numLayers+1)**2
+        counts = np.array([0])
+        for n in range(len(data))[:-1]:
+            if plotting:
+                plotFrame(data[n])
+                newFireCoords = np.array(np.where(data[n+1] == 1))
+                neighborsOnFire = getNeighbors(data[n], newFireCoords, numLayers)
+                counts = np.concatenate((counts, neighborsOnFire))
+                
+                assert len(counts) < data[0].shape[0]**2
+                
+        makeHist(counts, numBins)#, save=True, savePath = '/Users/mcurrie/FireDynamics/data/CA/test')
 
 main()
 

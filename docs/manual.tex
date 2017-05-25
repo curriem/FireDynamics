@@ -3,7 +3,7 @@
 \usepackage{fullpage}
 \begin{document}
 
-\title{Fire Dynamics Repository Manual}
+\title{Fire Dynamics Repository}
 \author{M. Currie and B. Quaife}
 \maketitle
 
@@ -18,6 +18,11 @@ The datasets are designated 13fsingle1, 13fsingle2, and 13fsingle3, however
 henceforth they shall be referred to as Fire 1, Fire 2, and Fire 3, respectively. Here we 
 present basic statistics for each of the three datasets. It is important to note that all 
 temperatures are in Celsius.
+
+All of the datasets were reduced from their original forms to get 
+rid of frames where there was significant readout noise and frames
+where nothing was happening (e.g. frames where the fire had already
+passed: static frames). The frame numbers used are specified in each respective section
 
 \begin{table}
 
@@ -38,46 +43,152 @@ Fire 3 & 267.044 & 199.998 & 113.061 & 849.827 & 199.998 & 1.000 \\
 
 \subsection{Fire 1}
 
-\begin{figure}
-\centering
-\includegraphics{../plots/f1_maxtemp.pdf}
-\caption{hello this is a test}
 
-\end{figure}
+\begin{table}
+\centering
+\begin{tabular}{|c|c|}
+\hline
+Data range used & Frames 60 through 300 \\
+\hline 
+               & 32, 72, 115, 136, 137, 156, 177, 197, 217, 238, \\
+               & 258, 278, 298, 318, 339, 359, 379, 399, 420, 459,\\
+Garbage frames & 481, 507, 534, 554, 574, 594, 614, 634, 655, 675,\\
+               & 695, 715, 735, 755, 775, 795, 815, 835, 856, 876,\\
+               & 896, 916, 936, 956, 976, 997, 1018, 1038, 1058, 1098\\
+\hline
+\end{tabular} 
+
+\caption{Good frames that were used in our analyses for Fire 1 and frames that were thrown out due to significant read noise. Indexing begins at 1.}
+\end{table}
+
+
 
 \begin{figure}[ht] 
 \centering
   \label{ fig7} 
-  \begin{minipage}[b]{1\linewidth}
+  \begin{minipage}[b]{0.5\linewidth}
     \centering
-    \includegraphics[width=0.8\linewidth]{../plots/f1_maxtemp.pdf} 
-    \caption{caption} 
+    \includegraphics[width=1.1\linewidth]{../plots/f1_maxtemp.pdf} 
+    \caption{Maximum temperature time series for Fire 1} 
     \vspace{4ex}
   \end{minipage}%%
-  \begin{minipage}[b]{1\linewidth}
+  \begin{minipage}[b]{0.5\linewidth}
     \centering
-    \includegraphics[width=0.8\linewidth]{../plots/f1_meantemp.pdf} 
-    \caption{caption} 
+    \includegraphics[width=1.1\linewidth]{../plots/f1_meantemp.pdf} 
+    \caption{Mean temperature time series for Fire 1} 
     \vspace{4ex}
   \end{minipage} 
-  \begin{minipage}[b]{1\linewidth}
+  \begin{minipage}[b]{0.5\linewidth}
     \centering
-    \includegraphics[width=0.8\linewidth]{../plots/f1_mediantemp.pdf} 
-    \caption{caption} 
+    \includegraphics[width=1.1\linewidth]{../plots/f1_mediantemp.pdf} 
+    \caption{Median temperature time series for Fire 1} 
     \vspace{4ex}
   \end{minipage}%% 
-  \begin{minipage}[b]{1\linewidth}
+  \begin{minipage}[b]{0.5\linewidth}
     \centering
-    \includegraphics[width=0.8\linewidth]{../plots/f1_stdtemp.pdf} 
-    \caption{caption} 
+    \includegraphics[width=1.1\linewidth]{../plots/f1_stdtemp.pdf} 
+    \caption{Standard deviation time series for Fire 1} 
     \vspace{4ex}
   \end{minipage} 
 \end{figure}
 
 \subsection{Fire 2}
 
+
+
+\begin{table}
+\centering
+\begin{tabular}{|c|c|}
+\hline
+Data range used & Frames 9 through 200 \\
+\hline 
+Garbage Frames & None \\
+\hline
+\end{tabular} 
+
+
+\caption{Good frames that were used in our analyses for Fire 2. No frames were thrown out die to read noise. Indexing begins at 1.}
+\end{table}
+
+\begin{figure}[ht] 
+\centering
+  \label{ fig7} 
+  \begin{minipage}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=1.1\linewidth]{../plots/f2_maxtemp.pdf} 
+    \caption{Maximum temperature time series for Fire 2} 
+    \vspace{4ex}
+  \end{minipage}%%
+  \begin{minipage}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=1.1\linewidth]{../plots/f2_meantemp.pdf} 
+    \caption{Mean temperature time series for Fire 2} 
+    \vspace{4ex}
+  \end{minipage} 
+  \begin{minipage}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=1.1\linewidth]{../plots/f2_mediantemp.pdf} 
+    \caption{Median temperature time series for Fire 2} 
+    \vspace{4ex}
+  \end{minipage}%% 
+  \begin{minipage}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=1.1\linewidth]{../plots/f2_stdtemp.pdf} 
+    \caption{Standard deviation time series for Fire 2} 
+    \vspace{4ex}
+  \end{minipage} 
+
+\end{figure}
+
 \subsection{Fire 3}
 
+
+
+\begin{table}
+\centering
+\begin{tabular}{|c|c|}
+\hline
+Data range used & Frames 45 through 220 \\
+\hline 
+Garbage Frames & 10, 30, 50, 71, 91, 112, 132, 152, 173, 213, \\
+               & 233, 253, 273, 294, 314 \\
+
+\hline
+\end{tabular} 
+
+\caption{Good frames that were used in our analyses for Fire 3 and frames that were thrown out due to significant read noise. Indexing begins at 1.}
+\end{table}
+
+
+\begin{figure}[ht] 
+\centering
+  \label{ fig7} 
+  \begin{minipage}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=1.05\linewidth]{../plots/f3_maxtemp.pdf} 
+    \caption{Maximum temperature time series for Fire 3} 
+    \vspace{4ex}
+  \end{minipage}%%
+  \begin{minipage}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=1.05\linewidth]{../plots/f3_meantemp.pdf} 
+    \caption{Mean temperature time series for Fire 3} 
+    \vspace{4ex}
+  \end{minipage} 
+  \begin{minipage}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=1.05\linewidth]{../plots/f3_mediantemp.pdf} 
+    \caption{Median temperature time series for Fire 3} 
+    \vspace{4ex}
+  \end{minipage}%% 
+  \begin{minipage}[b]{0.5\linewidth}
+    \centering
+    \includegraphics[width=1.05\linewidth]{../plots/f3_stdtemp.pdf} 
+    \caption{Standard deviation time series for Fire 3} 
+    \vspace{4ex}
+  \end{minipage} 
+
+\end{figure}
 
 \end{document}
 
