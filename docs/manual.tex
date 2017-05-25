@@ -1,6 +1,7 @@
 \documentclass{article}
+\usepackage{graphicx}
 \begin{document}
-%\usepackage[margin=1cm]{geometry}
+
 \title{Fire Dynamics Repository Manual}
 \author{M. Currie and B. Quaife}
 \maketitle
@@ -11,12 +12,15 @@
 
 %\pagebreak
 \section{Real IR Data}
-There are three real data sets that we are working with in the subsequent analyses. The datasets are designated 13fsingle1, 13fsingle2, and 13fsingle3, however henceforth they shall be referred to as Fire 1, Fire 2, and Fire 3, respectively. Here we present basic statistics for each of the three datasets. It is important to note that all temperatures are in Celsius.
+There are three real data sets that we are working with in the subsequent analyses. 
+The datasets are designated 13fsingle1, 13fsingle2, and 13fsingle3, however 
+henceforth they shall be referred to as Fire 1, Fire 2, and Fire 3, respectively. Here we 
+present basic statistics for each of the three datasets. It is important to note that all 
+temperatures are in Celsius.
 
 \begin{table}
-\centering
+
 \begin{tabular}{|c|c|c|c|c|c|c|}
-%\begin{tabular}{||p{50mm}|p{50mm}|p{50mm}|p{50mm}|p{50mm}|p{50mm}|}
 \hline
  & Mean Temp & Median Temp & Std Dev & Max Temp & Min Temp & Timestep (s) \\
 \hline
@@ -27,10 +31,47 @@ Fire 2 & 218.188 & 159.911 & 137.907 & 921.466 & 99.9974 & 1.000 \\
 Fire 3 & 267.044 & 199.998 & 113.061 & 849.827 & 199.998 & 1.000 \\
 \hline
 \end{tabular}
+\centering
 \caption{This table shows some basic values for each of the fires. These are overall values, meaning that it looks at all data from all timesteps.}
 \end{table}
 
 \subsection{Fire 1}
+
+\begin{figure}
+\includegraphics{../plots/f1_maxtemp.pdf}
+%\centering
+\caption{hello this is a test}
+
+\end{figure}
+
+\begin{figure}[ht] 
+\centering
+  \label{ fig7} 
+  \begin{minipage}[b]{1\linewidth}
+    \centering
+    \includegraphics[width=0.8\linewidth]{../plots/f1_maxtemp.pdf} 
+    \caption{caption} 
+    \vspace{4ex}
+  \end{minipage}%%
+  \begin{minipage}[b]{1\linewidth}
+    \centering
+    \includegraphics[width=0.8\linewidth]{../plots/f1_meantemp.pdf} 
+    \caption{caption} 
+    \vspace{4ex}
+  \end{minipage} 
+  \begin{minipage}[b]{1\linewidth}
+    \centering
+    \includegraphics[width=0.8\linewidth]{../plots/f1_mediantemp.pdf} 
+    \caption{caption} 
+    \vspace{4ex}
+  \end{minipage}%% 
+  \begin{minipage}[b]{1\linewidth}
+    \centering
+    \includegraphics[width=0.8\linewidth]{../plots/f1_stdtemp.pdf} 
+    \caption{caption} 
+    \vspace{4ex}
+  \end{minipage} 
+\end{figure}
 
 \subsection{Fire 2}
 
