@@ -207,7 +207,10 @@ def main():
     savePath = '/Users/mcurrie/FireDynamics/data/CA/'
     skewParam = [0,0.5]
     
-    
+    assert 0 <= skewParam[0] + masterProb <= 1 and \
+            0 <= skewParam[1] + masterProb <= 1, \
+            "The sum of skewParam elements and masterProb must be between 0 and 1"
+            
     # initiate the fire grid
     fireGrid = np.zeros((N, N))
     fireGrid[N/2,N/2] = 1
