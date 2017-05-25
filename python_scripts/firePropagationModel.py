@@ -52,7 +52,7 @@ def distanceFromCenterMatrix(numLayers, layerSize):
     mat = 1/mat
     return mat
 
-def skewProbabilityMatrix(numLayers, layerSize, skewProb):
+def skewProbabilityMatrix(numLayers, layerSize, skewParam):
 
     """computes a matrix of size one layer around the center pixel
     i.e. if numLayers = 1 then the resulting matrix will be 3x3.
@@ -67,12 +67,11 @@ def skewProbabilityMatrix(numLayers, layerSize, skewProb):
         in
     layerSize
         (int) the size of the layer (e.g. if numLayers = 1, then layerSize = 3)
-    skewProb
+    skewParam
         (1d array) of length two. Specifies how much to skew the probabilities 
         to make it directionally dependent. the values in the array must be between
         -0.5 and 0.5. Usage: if probSkew = [0, 0.5] the probabilities will skew
-        to the right and the fire will want to go to the right more. Note that 
-        the order is backwards: [y,x] This is an artifact of numpy arrays
+        up and the fire will want to go to up more.
     
     Returns:
     ----------
@@ -88,15 +87,31 @@ def skewProbabilityMatrix(numLayers, layerSize, skewProb):
         
     
     """
-    mat = np.empty((layerSize, layerSize))
-    center = [numLayers, numLayers]
-    for i in range(layerSize):
-        for j in range(layerSize):
-            x = i -numLayers
-            y = j -numLayers
-            mat[i,j] = np.linalg.norm([x - skewProb[0], y - skewProb[1]]) 
-    mat[center[0],center[1]] = np.inf
-    mat = 1/mat
+#==============================================================================
+#     mat = np.empty((layerSize, layerSize))
+#     center = [numLayers, numLayers]
+#     for i in range(layerSize):
+#         for j in range(layerSize):
+#             x = i -numLayers
+#             y = j -numLayers
+#             mat[i,j] = np.linalg.norm([x - skewParam[0], y - skewParam[1]]) 
+#     mat[center[0],center[1]] = np.inf
+#     mat = 1/mat
+#     
+#==============================================================================
+
+    # alternate method for skewing probabilities
+    mat = distanceFromCenterMatrix(numLayers, layerSize)
+    if skewParam[1] > 0:
+        mat[0:numLayers, :] += skewParam[1]
+    elif skewParam[1] < 0:
+        mat[numLayers+1:, :] -= skewParam[1]
+    elif skewParam[0] > 0:
+        mat[:, numLayers+1:] += skewParam[0]
+    elif skewParam[0] < 0:
+        mat[:, 0:numLayers] -= skewParam[0]
+
+    
     return mat
 
 def probThreshMatrix(numLayers, masterProb, layerSize, probSkew):
@@ -185,12 +200,12 @@ def main():
     
     plotting=True   # plot at the end?
     save=False       # save the plots?
-    N = 100
+    N = 50
     masterProb = 0.5
     numLayers = 2
-    numTimesteps = 100
+    numTimesteps = 15
     savePath = '/Users/mcurrie/FireDynamics/data/CA/'
-    probSkew = [0.0,0.0]
+    skewParam = [0,0.5]
     
     
     # initiate the fire grid
@@ -202,9 +217,9 @@ def main():
     
     layerSize = numLayers*2 +1
     
-    burnTimes = burnTimeGrid(N)
+    burnTimes = burnTimeGrid(N, homogeneous=True)
     
-    for t in range(numTimesteps)[:5]:
+    for t in range(numTimesteps):
         
         # check if any indices burnt out and flag them accordingly
         burntInds = np.array(np.where(fireGrid == burnTimes))
@@ -220,7 +235,7 @@ def main():
 
             randProb = randProbMatrix(numLayers, layerSize)
 
-            probThresh = probThreshMatrix(numLayers, masterProb, layerSize, probSkew)
+            probThresh = probThreshMatrix(numLayers, masterProb, layerSize, skewParam)
             
             probThresh = (np.ones((layerSize,layerSize)) - np.abs(neighbors))*probThresh
            
@@ -247,6 +262,7 @@ def main():
             plt.imshow(frame, interpolation='nearest', cmap='jet', vmin=-1, vmax=1)
             plt.axis('off')
             plt.colorbar()
+
 
     
 main()
