@@ -17,135 +17,99 @@ key:
 import numpy as np 
 import matplotlib.pyplot as plt
 
-def distanceFromCenterMatrix(numLayers, layerSize):
-    """computes a matrix of size one layer around the center pixel
-        i.e. if numLayers = 1 then the resulting matrix will be 3x3.
-        The matrix comtains distances to the center pixel from each
-        location
-        
-        Inputs:
-        ----------
-        
-        numLayers
-            (int) the number of layers around the center pixel you are interested
-            in
-        layerSize
-            (int) the size of the layer (e.g. if numLayers = 1, then layerSize = 3)
-        
-        Returns:
-        ----------
-        
-        mat
-            (2d numpy array) a matrix containing the distance from each cell to the
-            center
-        
-    
-    """
 
-    mat = np.empty((layerSize, layerSize))
+def plotFrame(frame, vmin=-1, vmax=1, title=None):
+    """ plots a frame 
+    
+    Inputs:
+    ----------
+    
+    frame
+        (2d numpy array) a frame to be plotted
+        
+    vmin 
+        (int) the minimum value to plot with the color bar. Default is -1 
+    
+    vmax 
+        (int) the maximum value to plot with the color bar. Default is 1
+    """
+    
+    plt.figure()
+    plt.imshow(frame, interpolation='nearest', vmin=vmin, vmax=vmax, cmap='jet')
+    plt.axis('off')
+    plt.colorbar()
+    plt.title(title)
+    #plt.close()
+    
+def probMatrix(numLayers, masterProb, windMag, windDir):
+    """ computes a matrix of probabilities for the immediate neighbors of a 
+    pixel of interest. The probabilities depend on distance from the center
+    pixel, the master probability, and the wind speed and direction
+    
+    Inputs:
+    ----------
+    
+    numLayers
+        (int) the numer of layers you are interested in around the center pixel     
+        
+    masterProb
+        (float) the probability of a pixel immediately to the north, south, east, 
+        or west lighting on fire with no wind
+        
+    windMag
+        (float) the strength of the wind. Must be less than masterProb and 1-masterProb
+        
+    windDir
+        (float) the angle of the wind measured clockwise from the north (in radians)
+            
+     
+    Returns:
+    ----------
+    
+    probMat
+        (2d numpy array)  a matrix containing the probabilities of the neighbors
+        lighting on fire
+    """
+    
+    assert windMag <= np.min([masterProb, 1 - masterProb]), \
+                'The magnitude of the wind must be less than masterProb and 1-masterProb!'
+                
+    matDim = numLayers*2 + 1  # the dimensions of the matrix of neighbors
+
+    # Compute the distance scales         
+    mat = np.empty((matDim, matDim))
     center = [numLayers, numLayers]
-    for i in range(layerSize):
-        for j in range(layerSize):
+    for i in range(matDim):
+        for j in range(matDim):
             mat[i,j] = np.linalg.norm(np.array([i,j]) - np.array(center))
-    mat[center[0],center[1]] = np.inf
-    
+    mat[center[0],center[1]] = np.inf    
     mat = 1/mat
-    return mat
-
-def skewProbabilityMatrix(numLayers, layerSize, skewParam):
-
-    """computes a matrix of size one layer around the center pixel
-    i.e. if numLayers = 1 then the resulting matrix will be 3x3.
-    The matrix comtains distances to the center pixel from each
-    location
     
-    Inputs:
-    ----------
+    # Add wind
+    windMat = np.empty_like(mat)
+    for i in range(matDim):
+        for j in range(matDim):
+            if i == j == numLayers:
+                windMat[i,j] = 0
+                continue
+            pixVector = np.array([(j - center[1]), -(i - center[0])])
+            windVector = np.array([np.sin(windDir), np.cos(windDir)])
+            cosAlpha = np.dot(pixVector, windVector)/ \
+                    (np.linalg.norm(pixVector) * np.linalg.norm(windVector))
+            windMat[i,j] = cosAlpha
+    windMat *= windMag        
     
-    numLayers
-        (int) the number of layers around the center pixel you are interested
-        in
-    layerSize
-        (int) the size of the layer (e.g. if numLayers = 1, then layerSize = 3)
-    skewParam
-        (1d array) of length two. Specifies how much to skew the probabilities 
-        to make it directionally dependent. the values in the array must be between
-        -0.5 and 0.5. Usage: if probSkew = [0, 0.5] the probabilities will skew
-        up and the fire will want to go to up more.
+    probMat = mat*masterProb + windMat
+    probMat[center[0], center[1]] = 0
     
-    Returns:
-    ----------
+    negInds = np.array(np.where(probMat < 0))
+    probMat[negInds[0], negInds[1]] = 0
     
-    mat
-        (2d numpy array) a matrix containing the distance from each cell to the
-        center
+    return probMat
+    
         
-    NOTES:
-    ----------
-    I should probably find a better way to skew the probabilities but it works
-    for now.
-        
-    
-    """
-#==============================================================================
-#     mat = np.empty((layerSize, layerSize))
-#     center = [numLayers, numLayers]
-#     for i in range(layerSize):
-#         for j in range(layerSize):
-#             x = i -numLayers
-#             y = j -numLayers
-#             mat[i,j] = np.linalg.norm([x - skewParam[0], y - skewParam[1]]) 
-#     mat[center[0],center[1]] = np.inf
-#     mat = 1/mat
-#     
-#==============================================================================
 
-    # alternate method for skewing probabilities
-    mat = distanceFromCenterMatrix(numLayers, layerSize)
-    if skewParam[1] > 0:
-        mat[0:numLayers, :] += skewParam[1]
-    elif skewParam[1] < 0:
-        mat[numLayers+1:, :] -= skewParam[1]
-    elif skewParam[0] > 0:
-        mat[:, numLayers+1:] += skewParam[0]
-    elif skewParam[0] < 0:
-        mat[:, 0:numLayers] -= skewParam[0]
-
-    
-    return mat
-
-def probThreshMatrix(numLayers, masterProb, layerSize, probSkew):
-    """computes a matrix of size one layer around the center pixel
-        i.e. if numLayers = 1 then the resulting matrix will be 3x3.
-        The matrix contains thresholds that the probaility has to meet
-        to light a particular pixel on fire
-        
-    Inputs:
-    ----------
-    numLayers
-        (int) the numer of layers you are interested in around the center pixel
-    prob 
-        (float) the chosen probility to light one adjecent pixel on fire
-    layerSize
-        (int) the size of the layer (e.g. if numLayers = 1, then layerSize = 3)   
-        
-    Returns:
-    ----------
-    probThreshMatrix
-        (2d numpy array) a matrix containing the probabilities of each cell lighting
-        on fire (scaled with distance)
-    
-    """
-
-    
-    #distanceMatrix = distanceFromCenterMatrix(numLayers, layerSize)
-    distanceMatrix = skewProbabilityMatrix(numLayers, layerSize, probSkew)
-    probThreshMatrix = distanceMatrix*masterProb
-
-    
-    return probThreshMatrix
-    
-def randProbMatrix(numLayers, layerSize):
+def randProbMatrix(numLayers):
     """computes a matrix of random values of size one layer around the center pixel
         i.e. if numLayers = 1 then the resulting matrix will be 3x3.
         
@@ -162,10 +126,11 @@ def randProbMatrix(numLayers, layerSize):
             (2d numpy array) a matrix with random values from 0 to 1.0
     """
     
-    randMatrix = np.random.rand(layerSize, layerSize)
+    matDim = 2*numLayers + 1
+    randMatrix = np.random.rand(matDim, matDim)
     return randMatrix
 
-def burnTimeGrid(N, homogeneous=False, master=3):
+def burnTimeGrid(N, master, homogeneous=False):
     """ this produces a custom grid of regions with varying burn times in the cells.
     By default it trisects the entire grid with burn times of one in the bottom 
     third, two in the middle third, and three in the top third
@@ -194,78 +159,95 @@ def burnTimeGrid(N, homogeneous=False, master=3):
     grid[2*N/3:, :] = 3
     if homogeneous:
         grid = master*np.ones((N,N))
+    
     return grid
     
+def initialFire(N, fireType):
+    
+    fireGrid = np.zeros((N, N))
+    
+    if fireType == 'line':
+        fireGrid[N/2,N/3:2*N/3] = 1
+    elif fireType == 'point':
+        fireGrid[N/2, N/2] = 1
+    elif fireType == 'parabola':
+        x = np.arange(N/3, 2*N/3)
+        y = 0.01*(x-N/2+1)**2 + N/2
+        fireGrid[np.rint(y).astype('int'),np.rint(x).astype('int')] = 1
+    else:
+        print 'Specified fire type not recognised. Proceeding with a point fire.'
+        fireGrid[N/2, N/2] = 1
+        
+    return fireGrid
+
 def main():
     
-    plotting=True   # plot at the end?
-    save=False       # save the plots?
-    N = 50
+    plotting=0   # plot at the end?
+    save=True       # save the plots?
+    N = 500   # length of a side
     masterProb = 0.5
-    numLayers = 2
-    numTimesteps = 15
+    windMag = 0.4
+    windDir = 0   # an angle in radians measured clockwise from north
+    fireType = 'line'
+    numLayers = 5
+    masterBurnTime = 3
+    numTimesteps = 20
     savePath = '/Users/mcurrie/FireDynamics/data/CA/'
-    skewParam = [0,0.5]
-    
-    assert 0 <= skewParam[0] + masterProb <= 1 and \
-            0 <= skewParam[1] + masterProb <= 1, \
-            "The sum of skewParam elements and masterProb must be between 0 and 1"
-            
-    # initiate the fire grid
-    fireGrid = np.zeros((N, N))
-    fireGrid[N/2,N/2] = 1
-
-    
-    fireTimeseries = [np.copy(fireGrid)]    # initiate a timeseries for later
-    
-    layerSize = numLayers*2 +1
-    
-    burnTimes = burnTimeGrid(N, homogeneous=True)
-    
-    for t in range(numTimesteps):
-        
-        # check if any indices burnt out and flag them accordingly
-        burntInds = np.array(np.where(fireGrid == burnTimes))
-        fireGrid[burntInds[0], burntInds[1]] = -1
-
-        # get the indices that are on fire
-        fireInds = np.array(np.where(fireGrid[numLayers:N-numLayers-1, numLayers:N-numLayers-1] > 0))
-        fireInds += numLayers
-        
-        for [x,y] in fireInds.T:
-
-            neighbors = fireGrid[x-numLayers:x+numLayers+1, y-numLayers:y+numLayers+1]
-
-            randProb = randProbMatrix(numLayers, layerSize)
-
-            probThresh = probThreshMatrix(numLayers, masterProb, layerSize, skewParam)
-            
-            probThresh = (np.ones((layerSize,layerSize)) - np.abs(neighbors))*probThresh
-           
-            diff = probThresh - randProb
-            
-            newFireInds = np.array(np.where(diff > 0))
-            neighbors[newFireInds[0], newFireInds[1]] = 1
-        
-            fireGrid[x-numLayers:x+numLayers+1, y-numLayers:y+numLayers+1] = neighbors
-            fireGrid[x,y] += 1
-        
-        # have to do this because python is stupid sometimes 
-        temp = np.copy(fireGrid)
-        fireTimeseries.append(temp)
-        
-    fireTimeseries = np.array(fireTimeseries)
-    
-    if save:
-        np.save(savePath+'CA_prob=%s_N=%i_layers=%i.npy'%(str(masterProb), N, numLayers), fireTimeseries)
-    
+    for fireType in ['point', 'line', 'parabola']:
+        for numLayers in [1,3,5]:
+            for masterBurnTime in [1,3]:
+                for windMag in [0.0,0.4]:
+                    print fireType, numLayers, masterBurnTime, windMag
+                    fireGrid = initialFire(N, fireType)    
+                
+                    fireTimeseries = [np.copy(fireGrid)]    # initiate a timeseries for later
+                        
+                    burnTimes = burnTimeGrid(N, masterBurnTime, homogeneous=True)
+                    for t in range(numTimesteps):
+                        #print "COUNTER:", t+1
+                        
+                        
+                        # get the indices that are on fire
+                        fireInds = np.array(np.where(fireGrid > 0))
+                        
+                
+                        for [x,y] in fireInds.T:
+                            
+                            neighbors = fireGrid[x-numLayers:x+numLayers+1, y-numLayers:y+numLayers+1]
+                            if np.array_equal(np.array(neighbors.shape), np.array([2.*numLayers+1, 2.*numLayers+1])) == False:
+                                continue
+                            randProb = randProbMatrix(numLayers)
+                
+                            probThresh = probMatrix(numLayers, masterProb, windMag, windDir)
+                            
+                            probThresh *= (np.ones_like(probThresh) - np.abs(neighbors)) # have to do this to avoid lighting an already active neighbor on fire
+                
+                            newFireInds = np.array(np.where(randProb < probThresh))
+                
+                            neighbors[newFireInds[0], newFireInds[1]] = 1
+                        
+                            fireGrid[x-numLayers:x+numLayers+1, y-numLayers:y+numLayers+1] = neighbors
+                            fireGrid[x,y] += 1
+                        
+                        # check to see if any pixels are going to burn out and flag them accordingly
+                        burntInds = np.array(np.where(fireGrid > burnTimes))
+                        fireGrid[burntInds[0], burntInds[1]] = -1
+                        #plotFrame(fireGrid,vmin=-1, vmax=4, title=t+1)
+                
+                        # have to do this because python is stupid sometimes 
+                        temp = np.copy(fireGrid)
+                        fireTimeseries.append(temp)
+                        
+                    fireTimeseries = np.array(fireTimeseries)
+                    
+                    if save:
+                        np.save(savePath+'CA_type=%s_layers=%i_burnTime=%i_wind=%s.npy'%(fireType, numLayers, masterBurnTime, str(windMag)), fireTimeseries)
+                                    
     if plotting:
         for frame in fireTimeseries:
             plt.figure()
             plt.imshow(frame, interpolation='nearest', cmap='jet', vmin=-1, vmax=1)
             plt.axis('off')
             plt.colorbar()
-
-
     
 main()

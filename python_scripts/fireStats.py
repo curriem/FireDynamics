@@ -180,14 +180,18 @@ def makeHist(counts, numBins, save=False, savePath=None):
 
 def main():
     fireNum = 3
-    filePath = '/Users/mcurrie/FireDynamics/data/f%i/f%i_dataCube.npy'%(fireNum, fireNum)
+    prinComps = "170"
+    filePath1 = '/Users/mcurrie/FireDynamics/data/f%i/f%i_dataCube.npy'%(fireNum, fireNum)
+    filePath2 = '/Users/mcurrie/FireDynamics/data/ReducedSolutions/redSol%i/dataCube%i_%s.npy'%(fireNum, fireNum, prinComps)
+    #filePath = '/Users/mcurrie/FireDynamics/data/ReducedSolutions/redSol%i/dataCube%i_%s_absDiff.npy'%(fireNum, fireNum, prinComps)
     #filePath = '/Users/mcurrie/FireDynamics/data/CA/CA_prob=0.5_N=1000_lag=3_layers=2.npy'
     #filePath = '/Users/mcurrie/FireDynamics/data/CA/CA_prob=0.5_N=1000_lag=2_layers=2.npy'
     savePath = '/Users/mcurrie/repositories/FireDynamics/plots/'
+    filePath = '/Users/mcurrie/FireDynamics/data/CA/CA_prob=0.5_N=100_layers=2.npy'
     data = loadData(filePath)
-    realData=True
+    realData=False
     plotting=True
-    save=True
+    save=False
     tempThresh = 500.
     
     
@@ -201,7 +205,21 @@ def main():
         print 'Mean Temp:', meanTemp
         print 'Median Temp:', medianTemp
         print 'Standard Dev:', stdTemp
+        
+        plt.figure()
+        plt.plot(range(len(maxTempTimeseries)), maxTempTimeseries, label='real')
+        
+        data = np.load(filePath2)
+        maxTemp, maxTempTimeseries, minTemp, minTempTimeseries, \
+            meanTemp, meanTempTimeseries, medianTemp, medianTempTimeseries, \
+            stdTemp, stdTempTimeseries = tempStats(data)  
+        
+        plt.plot(range(len(maxTempTimeseries)), maxTempTimeseries, label='dmd')
+        plt.ylim([0,1000])
+        plt.legend()
+        plt.show()
         # plotting the statistics
+        
         if plotting:
             plotStat(maxTempTimeseries, 'Maximum Temperature by Frame', save, savePath+'f%i_maxtemp.pdf'%fireNum)
             plotStat(minTempTimeseries, 'Minimum Temperature by Frame'%minTemp, save, savePath+'f%i_mintemp.pdf'%fireNum)
@@ -221,7 +239,7 @@ def main():
                 neighborsOnFire = getNeighbors(data[n], newFireCoords, numLayers)
                 counts = np.concatenate((counts, neighborsOnFire))
                 
-                assert len(counts) < data[0].shape[0]**2
+                #assert len(counts) < data[0].shape[0]**2
                 
         makeHist(counts, numBins)#, save=True, savePath = '/Users/mcurrie/FireDynamics/data/CA/test')
 
