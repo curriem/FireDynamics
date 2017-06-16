@@ -105,9 +105,10 @@ def probMatrix(numLayers, masterProb, windMag, windDir):
     negInds = np.array(np.where(probMat < 0))
     probMat[negInds[0], negInds[1]] = 0
     
-    return probMat
+    return probMat*0.1
     
-        
+
+    
 
 def randProbMatrix(numLayers):
     """computes a matrix of random values of size one layer around the center pixel
@@ -154,11 +155,11 @@ def burnTimeGrid(N, master, homogeneous=False):
         
     """
 
-    grid = np.ones((N,N))
-    grid[N/3:2*N/3, :] = 2
-    grid[2*N/3:, :] = 3
+    grid = np.ones((N, N))
+    #grid[N/3:2*N/3, :] = 2
+    #grid[2*N/3:, :] = 3
     if homogeneous:
-        grid = master*np.ones((N,N))
+        grid = master*grid
     
     return grid
     
@@ -180,74 +181,146 @@ def initialFire(N, fireType):
         
     return fireGrid
 
+def realProbs(frame):
+    
+    
+    realProbs = [0.0784, 0.104, 0.0915, 0.197, 0.235, 0.251, 0.226, 0.305]
+    newFrame = np.copy(frame)
+    x, y = frame.shape
+    for i in range(x):
+        for j in range(y):
+            cell = frame[i,j]
+            neighbors = frame[i-1:i+2, j-1:j+2]
+            disregard, fireCount = np.array(np.where(neighbors>0)).shape
+            if cell == 0 and fireCount > 0:
+
+                prob = realProbs[fireCount -1]
+                randomNum = np.random.rand()
+                if randomNum < prob:
+                    newFrame[i,j] = 1
+    #plotFrame(newFrame)
+    return newFrame
+                
+def realInitGrid(filePath):
+    tempThresh = 500.
+    data = np.load(filePath)
+    initGrid = np.zeros_like(data[0])
+    initGrid[np.where(data[0] > tempThresh)] = 1
+    
+    return initGrid
+    
+def padwithnum(vector, pad_width, iaxis, kwargs):
+    vector[:pad_width[0]] = 1
+    vector[-pad_width[1]:] = 1
+    return vector
+
+def padData(data):
+    padParam = 10
+    t, x, y = data.shape
+    data = np.nan_to_num(data)
+    padded = np.zeros((t, x+padParam, y+padParam))
+    padded[:, padParam/2:x+padParam/2, padParam/2:y+padParam/2] = data
+    return padded
+
+def getProbs(frame, nextFrame, numLayers):
+    
+    x, y, = frame.shape
+    litCount = []
+    unlitCount = []
+    for l in range(numLayers):
+        litCount.append([0])
+        unlitCount.append([0])
+        
+    for i in range(x):
+        for j in range(y):
+            cell = frame[i,j]
+            for numLayers in range(numLayers):
+                numLayers+=1
+                baseNeighborMask = np.zeros((2*numLayers -1, 2*numLayers -1))
+                neighbors = frame[i-numLayers:i+numLayers+1, j-numLayers:j+numLayers+1]
+                neighborMask = np.lib.pad(baseNeighborMask, 1, padwithnum)
+                if neighbors.shape != neighborMask.shape:
+                    continue
+                neighbors *= neighborMask
+                nextCell = nextFrame[i,j]
+                if cell == 0:
+                    disregard, neighborCount = np.array(np.where(neighbors>0)).shape
+                    if nextCell == 1:
+                        litCount[numLayers-1].append(neighborCount)
+                    elif nextCell == 0:
+                        unlitCount[numLayers-1].append(neighborCount)
+    return np.array(litCount), np.array(unlitCount)
+
+
+
+
+
 def main():
     
-    plotting=0   # plot at the end?
-    save=True       # save the plots?
-    N = 500   # length of a side
-    masterProb = 0.5
-    windMag = 0.4
-    windDir = 0   # an angle in radians measured clockwise from north
-    fireType = 'line'
-    numLayers = 5
-    masterBurnTime = 3
-    numTimesteps = 20
+    plotting=True  # plot at the end?
+    save=False       # save the plots?
+
+    N = 50
+    numLayers = 1
+    masterBurnTime = 30
+    numTimesteps = 10
+    
+    realDataPath = '/Users/mcurrie/FireDynamics/data/f3/f3_dataCube.npy'
     savePath = '/Users/mcurrie/FireDynamics/data/CA/'
-    for fireType in ['point', 'line', 'parabola']:
-        for numLayers in [1,3,5]:
-            for masterBurnTime in [1,3]:
-                for windMag in [0.0,0.4]:
-                    print fireType, numLayers, masterBurnTime, windMag
-                    fireGrid = initialFire(N, fireType)    
-                
-                    fireTimeseries = [np.copy(fireGrid)]    # initiate a timeseries for later
-                        
-                    burnTimes = burnTimeGrid(N, masterBurnTime, homogeneous=True)
-                    for t in range(numTimesteps):
-                        #print "COUNTER:", t+1
-                        
-                        
-                        # get the indices that are on fire
-                        fireInds = np.array(np.where(fireGrid > 0))
-                        
-                
-                        for [x,y] in fireInds.T:
-                            
-                            neighbors = fireGrid[x-numLayers:x+numLayers+1, y-numLayers:y+numLayers+1]
-                            if np.array_equal(np.array(neighbors.shape), np.array([2.*numLayers+1, 2.*numLayers+1])) == False:
-                                continue
-                            randProb = randProbMatrix(numLayers)
-                
-                            probThresh = probMatrix(numLayers, masterProb, windMag, windDir)
-                            
-                            probThresh *= (np.ones_like(probThresh) - np.abs(neighbors)) # have to do this to avoid lighting an already active neighbor on fire
-                
-                            newFireInds = np.array(np.where(randProb < probThresh))
-                
-                            neighbors[newFireInds[0], newFireInds[1]] = 1
-                        
-                            fireGrid[x-numLayers:x+numLayers+1, y-numLayers:y+numLayers+1] = neighbors
-                            fireGrid[x,y] += 1
-                        
-                        # check to see if any pixels are going to burn out and flag them accordingly
-                        burntInds = np.array(np.where(fireGrid > burnTimes))
-                        fireGrid[burntInds[0], burntInds[1]] = -1
-                        #plotFrame(fireGrid,vmin=-1, vmax=4, title=t+1)
-                
-                        # have to do this because python is stupid sometimes 
-                        temp = np.copy(fireGrid)
-                        fireTimeseries.append(temp)
-                        
-                    fireTimeseries = np.array(fireTimeseries)
-                    
-                    if save:
-                        np.save(savePath+'CA_type=%s_layers=%i_burnTime=%i_wind=%s.npy'%(fireType, numLayers, masterBurnTime, str(windMag)), fireTimeseries)
-                                    
+    filePath = '/Users/mcurrie/FireDynamics/data/f3/f3_dataCube.npy'
+    
+    
+    #fireGrid = realInitGrid(filePath)
+
+
+    fireGrid = initialFire(N, 'point')
+    data = np.load(realDataPath)
+    data = np.nan_to_num(data)
+    tempThresh = 500.
+
+   # model = modelData(data, tempThresh)
+    
+  #  burnTimeGrid = masterBurnTime*np.ones_like(model[-1])
+    
+   # burnTimeGrid[np.where(model[-1] == 0)] = 0
+    
+    burnTimes = burnTimeGrid(N, masterBurnTime, homogeneous=True)
+    
+    fireTimeseries = [np.copy(fireGrid)]    # initiate a timeseries for later
+    
+    #c
+    
+    for t in range(numTimesteps):
+        #print "COUNTER:", t+1
+        
+        onFireInds = np.where(fireGrid > 0)
+        
+        fireGrid = realProbs(fireGrid)
+        fireGrid[onFireInds] += 1
+
+        # check to see if any pixels are going to burn out and flag them accordingly
+        burntInds = np.array(np.where(fireGrid > burnTimes))
+        fireGrid[burntInds[0], burntInds[1]] = -1
+
+        # have to do this because python is stupid sometimes 
+        temp = np.copy(fireGrid)
+        fireTimeseries.append(temp)
+        
+    fireTimeseries = np.array(fireTimeseries)
+    
+    if save:
+        #np.save(savePath+'CA_type=%s_layers=%i_burnTime=%i_wind=%s.npy'%(fireType, numLayers, masterBurnTime, str(windMag)), fireTimeseries)
+        np.save(savePath+'CA_real_analog_f3.npy', fireTimeseries)          
     if plotting:
+        n = 1
         for frame in fireTimeseries:
             plt.figure()
             plt.imshow(frame, interpolation='nearest', cmap='jet', vmin=-1, vmax=1)
             plt.axis('off')
             plt.colorbar()
+            if save:
+                plt.savefig(savePath+'/images/im%s.png'%str(n).zfill(4), clobber=True)
+            #plt.close()
+            n += 1
     
 main()
