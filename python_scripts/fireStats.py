@@ -4,10 +4,18 @@
 Created on Tue May 23 10:56:09 2017
 
 @author: mcurrie
+
+
+Want in this code: 
+    A histogram that says how many previously on fire neighbors lit a pixel on fire
+    A histogram that says how many previously on fire pixels failed to light a pixel on fire
+    Burn time distribution
+
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+import glob 
 
 def loadData(filePath):
     """loads data in from a .npy array
@@ -27,51 +35,38 @@ def loadData(filePath):
     data = np.load(filePath)
     return data
 
-def plotStat(stat, title=None, save=False, savePath=None):
+def plotStat(stat, title=None):
     """ plots a timeseries of a given statistic
     
     Inputs:
     ----------
     stat
         (1d numpy array) a timeseries of a given statistic
-    title
-        (str) title for the plot
-    save
-        (bool) if true, it saves the plot
-    savePath
-        (str) path to save to 
         
     """
     plt.figure()
     plt.plot(range(len(stat)), stat)
     plt.title(title)
-    plt.ylabel('Statistic')
-    plt.xlabel('Frame')
-    if save:    
-        plt.savefig(savePath)
+    plt.ylabel('statistic')
+    plt.xlabel('time')
     plt.show()
-    
 
-def plotFrame(frame, vmin=-1, vmax=1):
-    """ plots a frame 
-    
-    Inputs:
-    ----------
-    
-    frame
-        (2d numpy array) a frame to be plotted
-        
-    vmin 
-        (int) the minimum value to plot with the color bar. Default is -1 
-    
-    vmax 
-        (int) the maximum value to plot with the color bar. Default is 1
-    """
-    
+def plotFrame(frame):
     plt.figure()
-    plt.imshow(frame, interpolation='nearest', vmin=vmin, vmax=vmax, cmap='jet')
+    plt.imshow(frame, interpolation='nearest', vmin=-1, vmax=1, cmap='jet')
     plt.colorbar()
-    plt.close()
+    #plt.close()
+
+def burnTimes(data):
+    
+    
+    t, x, y = data.shape
+    burnTimes = []
+    for i in range(x):
+        for j in range(y):
+            burnTimes.append(np.max(data[:, i, j]))
+    
+    return burnTimes
 
 def tempStats(data):
     """this gives basic statistics for the data set
@@ -97,151 +92,174 @@ def tempStats(data):
     
     
     """
-    
-    # Entire dataset:
-    maxTemp = np.nanmax(data)
-    minTemp = np.nanmin(data)
-    meanTemp = np.nanmean(data)
-    medianTemp = np.nanmedian(data)
-    stdTemp = np.nanstd(data)
+
     
     # Per Frame:
-    maxTempTimeseries = np.nanmax(np.nanmax(data, axis=1), axis=1)
-    minTempTimeseries = np.nanmin(np.nanmin(data, axis=1), axis=1)
-    meanTempTimeseries = np.nanmean(np.nanmean(data, axis=1), axis=1)
-    medianTempTimeseries = np.nanmedian(np.nanmedian(data, axis=1), axis=1)
-    stdTempTimeseries = np.nanstd(np.nanstd(data, axis=1), axis=1)
+    maxTemp = np.nanmax(np.nanmax(data, axis=1), axis=1)
+    minTemp = np.nanmin(np.nanmin(data, axis=1), axis=1)
+    meanTemp = np.nanmean(np.nanmean(data, axis=1), axis=1)
+    medianTemp = np.nanmedian(np.nanmedian(data, axis=1), axis=1)
+    stdTemp = np.nanstd(np.nanstd(data, axis=1), axis=1)
     
-    return maxTemp, maxTempTimeseries, minTemp, minTempTimeseries, \
-        meanTemp, meanTempTimeseries, medianTemp, medianTempTimeseries, \
-        stdTemp, stdTempTimeseries
+    return maxTemp, minTemp, meanTemp, medianTemp, stdTemp
         
-def getNeighbors(prevFrame, newFireCoords, numLayers):
-    """ this gets the number of surrounding neighbors that were on fire in the 
-    previous frame within a certain number of layers around the pixel of interest
-    
-    Inputs:
-    ----------
-    
-    prevFrame
-        (2d numpy array) the frame before the current frame of interest
-    
-    newFireCoords
-        (2d numpy array) an array containing the coordinates [x,y] of pixels 
-        that are newly on fire in the current frame
-    
-    numLayers
-        (int) the number of layers of neighbors you are interested in
-        
-    Returns:
-    ----------
-    
-    counts
-        (1d array) for each pixel newly on fire, this contains the number of 
-        neighbor pixels that were on fire in the previous frame
-    
-    """
-    
-    counts = []
-    for [x,y] in newFireCoords.T:
-        neighbors = prevFrame[x-numLayers:x+numLayers+1, y-numLayers:y+numLayers+1]
-        count =  np.array(np.where(neighbors > 0)).shape[1]
-        counts.append(count)
-    return counts
+def getNeighbors(x, y, prevFrame, numLayers):
+    neighbors = prevFrame[x-numLayers:x+numLayers+1, y-numLayers:y+numLayers+1]
 
-def makeHist(counts, numBins, save=False, savePath=None):
-    """makes a histogram of the number of occurances of the number of neighbors
-    that were on fire in the previous frame
-    
-    Inputs:
-    ----------
-    
-    counts
-        (1d array) an array containing the number of neighbors that were on fire
-        in the previous frame for each newly on fire pixel
-        
-    numBins
-        (int) the number of bins to produce
-        
-    save
-        (bool) true if you want to save the plot. Default is false
-        
-    savePath
-        (str) the path to the file name you want to save under (excluding the 
-        file type e.g. ".pdf")
-    
-    """
-    
+    return neighbors
+
+def makeHist(vector,bins, title, save=False, savePath=None):
     plt.figure()
-    plt.hist(counts, numBins)
+    plt.hist(vector, bins)
+    plt.title(title)
+    plt.ylabel('Number of times neighbors didn\'t set a pixel on fire')
+    plt.xlabel('Number of neighbors')
     if save:
         plt.savefig(savePath+'.pdf', clobber=True)
     plt.show()
 
+def modelData(data, tempThresh):
+    """This models the data with positive integers being on fire (the number 
+    corresponding to the burn time), zeros being unburned material, and negative
+    ones being burned material
+    
+    Inputs:
+    ----------
+    
+    data
+        (3d numpy array) a timeseries of the data
+    
+    tempThresh
+        (float) the temperature threshild for a pixel being "on fire"
+        
+    Returns:
+    ----------
+    
+    model
+        (3d numpy array) a timeseries for the model of the data
+    
+    """
+    
+    data = np.nan_to_num(data)
+    model = []
+    
+    t, x, y = data.shape
+    for frame in data:
+        modelFrame = np.zeros_like(frame)
+        modelFrame[np.where(frame > tempThresh)] = 1
+        #plotFrame(modelFrame)
+        model.append(modelFrame)
+    
+    model = np.array(model)
+    
+    model = np.cumsum(model, axis=0)
+    for i in range(x):
+        for j in range(y):
+
+            uniqueNums, uniqueInds = np.unique(model[:, i, j], return_index=True)
+            model[uniqueInds[-1]+1:, i, j] = -1
+    
+      
+    return model
+
+def countingNeighbors(data, numLayers):
+    ''' this counts neighbors in the previous timestep that are on fire in the
+    previous frame around a pixel of interest 
+    
+    Inputs:
+    ----------
+    
+    data
+        (3d numpy array) a timeseries of the data
+    
+    numLayers
+        (int) how many neighbors around the pixel of interest you want to look at
+        
+    Returns:
+    ---------
+    
+    fireCounts
+        (1d array) an array of counts of neighbors on fire
+    
+    '''
+    
+    t, x, y = data.shape
+    fireCounts = []
+    for n in range(t)[:-1]:
+        
+        """
+        NOTE: BOUNDARY EFFECT HANDLER IS WRONG!!!! Correcting later. 
+        """
+        
+        onFireX, onFireY = np.where(data[n+1] == 1)
+        
+        # get rid of boundary effects
+        onFireX = onFireX[np.where(onFireX >= numLayers)]
+        onFireX = onFireX[np.where(onFireX < x - numLayers)]
+        onFireY = onFireY[np.where(onFireY >= numLayers)]
+        onFireY = onFireY[np.where(onFireY < y - numLayers)]
+        
+        unburntX, unburntY = np.where(data[n+1] == 0)
+        
+        # get rid of boundary effects
+        unburntX = unburntX[np.where(unburntX >= numLayers)]
+        unburntX = unburntX[np.where(unburntX < x- numLayers)]
+        unburntY = unburntY[np.where(unburntY >= numLayers)]
+        unburntY = unburntY[np.where(unburntY < y - numLayers)]
+        
+        
+        #for x1, y1 in zip(onFireX, onFireY):
+        for x1, y1 in zip(unburntX, unburntY):
+            if data[n, x1, y1] == 0:
+                neighbors = getNeighbors(x1, y1, data[n], numLayers)
+                disregard, fireCount = np.array(np.where(neighbors > 0)).shape
+                fireCounts.append(fireCount)
+    return np.array(fireCounts)
+
+#==============================================================================
+#         for x0, y0 in zip(unburntX, unburntY):
+#             print 'hi'
+#==============================================================================
+            
+    
+            
+
 def main():
-    fireNum = 3
-    prinComps = "170"
-    filePath1 = '/Users/mcurrie/FireDynamics/data/f%i/f%i_dataCube.npy'%(fireNum, fireNum)
-    filePath2 = '/Users/mcurrie/FireDynamics/data/ReducedSolutions/redSol%i/dataCube%i_%s.npy'%(fireNum, fireNum, prinComps)
-    #filePath = '/Users/mcurrie/FireDynamics/data/ReducedSolutions/redSol%i/dataCube%i_%s_absDiff.npy'%(fireNum, fireNum, prinComps)
-    #filePath = '/Users/mcurrie/FireDynamics/data/CA/CA_prob=0.5_N=1000_lag=3_layers=2.npy'
-    #filePath = '/Users/mcurrie/FireDynamics/data/CA/CA_prob=0.5_N=1000_lag=2_layers=2.npy'
-    savePath = '/Users/mcurrie/repositories/FireDynamics/plots/'
-    filePath = '/Users/mcurrie/FireDynamics/data/CA/CA_prob=0.5_N=100_layers=2.npy'
-    data = loadData(filePath)
-    realData=False
-    plotting=True
-    save=False
-    tempThresh = 500.
     
+    filePaths = glob.glob('/Users/mcurrie/FireStats/data/*npy')
     
-    if realData:
+    plotTempStats = False
+    plotFrames = False
+    tempThresh = 400.
+    numLayers = 1
+    bins = np.arange(1, (2*numLayers+1)**2 + 1, 1)
     
-        maxTemp, maxTempTimeseries, minTemp, minTempTimeseries, \
-            meanTemp, meanTempTimeseries, medianTemp, medianTempTimeseries, \
-            stdTemp, stdTempTimeseries = tempStats(data)
-        print 'Max Temp:', maxTemp
-        print 'Min Temp:', minTemp
-        print 'Mean Temp:', meanTemp
-        print 'Median Temp:', medianTemp
-        print 'Standard Dev:', stdTemp
-        
-        plt.figure()
-        plt.plot(range(len(maxTempTimeseries)), maxTempTimeseries, label='real')
-        
-        data = np.load(filePath2)
-        maxTemp, maxTempTimeseries, minTemp, minTempTimeseries, \
-            meanTemp, meanTempTimeseries, medianTemp, medianTempTimeseries, \
-            stdTemp, stdTempTimeseries = tempStats(data)  
-        
-        plt.plot(range(len(maxTempTimeseries)), maxTempTimeseries, label='dmd')
-        plt.ylim([0,1000])
-        plt.legend()
-        plt.show()
-        # plotting the statistics
-        
-        if plotting:
-            plotStat(maxTempTimeseries, 'Maximum Temperature by Frame', save, savePath+'f%i_maxtemp.pdf'%fireNum)
-            plotStat(minTempTimeseries, 'Minimum Temperature by Frame'%minTemp, save, savePath+'f%i_mintemp.pdf'%fireNum)
-            plotStat(meanTempTimeseries, 'Mean Temperature by Frame'%meanTemp,save, savePath+'f%i_meantemp.pdf'%fireNum)
-            plotStat(medianTempTimeseries, 'Median Temperature by Frame'%medianTemp, save, savePath+'f%i_mediantemp.pdf'%fireNum)
-            plotStat(stdTempTimeseries, 'Standard Deviation of Temperature by Frame'%stdTemp, save, savePath+'f%i_stdtemp.pdf'%fireNum)
+    for filePath in filePaths:
     
-    # Make histogram
-    else:
-        numLayers = 2
-        numBins = (2*numLayers+1)**2
-        counts = np.array([0])
-        for n in range(len(data))[:-1]:
-            if plotting:
-                plotFrame(data[n])
-                newFireCoords = np.array(np.where(data[n+1] == 1))
-                neighborsOnFire = getNeighbors(data[n], newFireCoords, numLayers)
-                counts = np.concatenate((counts, neighborsOnFire))
-                
-                #assert len(counts) < data[0].shape[0]**2
-                
-        makeHist(counts, numBins)#, save=True, savePath = '/Users/mcurrie/FireDynamics/data/CA/test')
+        data = loadData(filePath)
+        
+        model = modelData(data, tempThresh)
+        
+        savePath = '/Users/mcurrie/FireStats/plots/%s_unlit'%filePath.split('/')[-1].strip('.npy')
+        
+        if plotTempStats:
+        
+            maxTemp, minTemp, meanTemp, medianTemp, stdTemp = tempStats(data)
+            
+            # plotting the statistics
+            plotStat(maxTemp, 'max temp, overall max = %f'%maxTemp)
+            plotStat(minTemp, 'min temp, overall min = %f'%minTemp)
+            plotStat(meanTemp, 'mean temp, overall mean = %f'%meanTemp)
+            plotStat(medianTemp, 'median temp, overall median = %f'%medianTemp)
+            plotStat(stdTemp, 'std temp, overall std = %f'%stdTemp)
+        
+        # Make histogram that says how many neighbors lit a pixel on fire
+        fireCounts = countingNeighbors(model, numLayers)
+        
+        fireCounts = fireCounts[np.where(fireCounts > 0)]
+        
+        makeHist(fireCounts, bins, title=filePath, save=True, savePath = savePath)
+
 
 main()
 
