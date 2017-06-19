@@ -108,11 +108,15 @@ def getNeighbors(x, y, prevFrame, numLayers):
 
     return neighbors
 
-def makeHist(vector,bins, title, save=False, savePath=None):
+def makeHist(vector ,bins, title, save=False, savePath=None):
+    onFireCounts = vector[0]
+    unburntCounts = vector[1]
     plt.figure()
-    plt.hist(vector, bins)
+    plt.hist(np.concatenate((unburntCounts, onFireCounts)), bins, label="neighbors did NOT light pixel")
+    plt.hist(onFireCounts, bins, label="neighbors DID light pixel")
     plt.title(title)
-    plt.ylabel('Number of times neighbors didn\'t set a pixel on fire')
+    plt.legend()
+    plt.ylabel('Number of instances')
     plt.xlabel('Number of neighbors')
     if save:
         plt.savefig(savePath+'.pdf', clobber=True)
@@ -184,7 +188,8 @@ def countingNeighbors(data, numLayers):
     '''
     
     t, x, y = data.shape
-    fireCounts = []
+    onFireCounts = []
+    unburntCounts = []
     for n in range(t)[:-1]:
         
         """
@@ -208,13 +213,18 @@ def countingNeighbors(data, numLayers):
         unburntY = unburntY[np.where(unburntY < y - numLayers)]
         
         
-        #for x1, y1 in zip(onFireX, onFireY):
+        for x1, y1 in zip(onFireX, onFireY):
+            if data[n, x1, y1] == 0:
+                neighbors = getNeighbors(x1, y1, data[n], numLayers)
+                disregard, fireCount = np.array(np.where(neighbors > 0)).shape
+                onFireCounts.append(fireCount)
+            
         for x1, y1 in zip(unburntX, unburntY):
             if data[n, x1, y1] == 0:
                 neighbors = getNeighbors(x1, y1, data[n], numLayers)
                 disregard, fireCount = np.array(np.where(neighbors > 0)).shape
-                fireCounts.append(fireCount)
-    return np.array(fireCounts)
+                unburntCounts.append(fireCount)
+    return np.array(onFireCounts), np.array(unburntCounts)
 
 #==============================================================================
 #         for x0, y0 in zip(unburntX, unburntY):
@@ -230,7 +240,7 @@ def main():
     
     plotTempStats = False
     plotFrames = False
-    tempThresh = 400.
+    tempThresh = 500.
     numLayers = 1
     bins = np.arange(1, (2*numLayers+1)**2 + 1, 1)
     
@@ -240,7 +250,7 @@ def main():
         
         model = modelData(data, tempThresh)
         
-        savePath = '/Users/mcurrie/FireStats/plots/%s_unlit'%filePath.split('/')[-1].strip('.npy')
+        savePath = '/Users/mcurrie/FireStats/plots/%s_combined_thresh500'%filePath.split('/')[-1].strip('.npy')
         
         if plotTempStats:
         
@@ -254,11 +264,14 @@ def main():
             plotStat(stdTemp, 'std temp, overall std = %f'%stdTemp)
         
         # Make histogram that says how many neighbors lit a pixel on fire
-        fireCounts = countingNeighbors(model, numLayers)
+        onFireCounts, unburntCounts = countingNeighbors(model, numLayers)
         
-        fireCounts = fireCounts[np.where(fireCounts > 0)]
+        onFireCounts = onFireCounts[np.where(onFireCounts > 0)]
         
-        makeHist(fireCounts, bins, title=filePath, save=True, savePath = savePath)
+        unburntCounts = unburntCounts[np.where(unburntCounts > 0)]
+        
+        
+        makeHist([onFireCounts, unburntCounts], bins, title=filePath, save=True, savePath = savePath)
 
 
 main()
