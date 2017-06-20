@@ -35,7 +35,7 @@ def loadData(filePath):
     data = np.load(filePath)
     return data
 
-def plotStat(stat, title=None):
+def plotStat(stat, title, savePath):
     """ plots a timeseries of a given statistic
     
     Inputs:
@@ -48,8 +48,10 @@ def plotStat(stat, title=None):
     plt.plot(range(len(stat)), stat)
     plt.title(title)
     plt.ylabel('statistic')
-    plt.xlabel('time')
+    plt.xlabel('frame')
+    plt.savefig(savePath)
     plt.show()
+    plt.close()
 
 def plotFrame(frame):
     plt.figure()
@@ -57,7 +59,7 @@ def plotFrame(frame):
     plt.colorbar()
     #plt.close()
 
-def burnTimes(data):
+def getBurnTimes(data):
     
     
     t, x, y = data.shape
@@ -66,6 +68,8 @@ def burnTimes(data):
         for j in range(y):
             burnTimes.append(np.max(data[:, i, j]))
     
+    burnTimes = np.array(burnTimes)
+    burnTimes = burnTimes[np.where(burnTimes > 0)]
     return burnTimes
 
 def tempStats(data):
@@ -121,6 +125,7 @@ def makeHist(vector ,bins, title, save=False, savePath=None):
     if save:
         plt.savefig(savePath+'.pdf', clobber=True)
     plt.show()
+    plt.close()
 
 def modelData(data, tempThresh):
     """This models the data with positive integers being on fire (the number 
@@ -191,39 +196,26 @@ def countingNeighbors(data, numLayers):
     onFireCounts = []
     unburntCounts = []
     for n in range(t)[:-1]:
-        
-        """
-        NOTE: BOUNDARY EFFECT HANDLER IS WRONG!!!! Correcting later. 
-        """
-        
+                
         onFireX, onFireY = np.where(data[n+1] == 1)
-        
-        # get rid of boundary effects
-        onFireX = onFireX[np.where(onFireX >= numLayers)]
-        onFireX = onFireX[np.where(onFireX < x - numLayers)]
-        onFireY = onFireY[np.where(onFireY >= numLayers)]
-        onFireY = onFireY[np.where(onFireY < y - numLayers)]
-        
         unburntX, unburntY = np.where(data[n+1] == 0)
-        
-        # get rid of boundary effects
-        unburntX = unburntX[np.where(unburntX >= numLayers)]
-        unburntX = unburntX[np.where(unburntX < x- numLayers)]
-        unburntY = unburntY[np.where(unburntY >= numLayers)]
-        unburntY = unburntY[np.where(unburntY < y - numLayers)]
-        
-        
+           
         for x1, y1 in zip(onFireX, onFireY):
             if data[n, x1, y1] == 0:
                 neighbors = getNeighbors(x1, y1, data[n], numLayers)
+                if neighbors.shape != (2*numLayers+1, 2*numLayers+1):
+                    continue
                 disregard, fireCount = np.array(np.where(neighbors > 0)).shape
                 onFireCounts.append(fireCount)
             
         for x1, y1 in zip(unburntX, unburntY):
             if data[n, x1, y1] == 0:
                 neighbors = getNeighbors(x1, y1, data[n], numLayers)
+                if neighbors.shape != (2*numLayers+1, 2*numLayers+1):
+                    continue
                 disregard, fireCount = np.array(np.where(neighbors > 0)).shape
                 unburntCounts.append(fireCount)
+                
     return np.array(onFireCounts), np.array(unburntCounts)
 
 #==============================================================================
@@ -231,37 +223,65 @@ def countingNeighbors(data, numLayers):
 #             print 'hi'
 #==============================================================================
             
-    
+  
+def makeProbPlots(onFireCounts, unburntCounts, title=None, save=False, savePath=None):
+    onFireUnique, onFireTally = np.unique(onFireCounts, return_counts=True)
+    unburntUnique, unburntTally = np.unique(unburntCounts, return_counts=True)
+    probs = onFireTally.astype('float')/(onFireTally + unburntTally)
+    plt.figure()
+    plt.plot(onFireUnique, probs)
+    plt.title(title)
+    plt.xlabel('number of neighbors on fire')
+    plt.ylabel('probability of lighting on fire')
+    if save:
+        plt.savefig(savePath)
+    plt.show()
+    plt.close()
             
 
 def main():
     
     filePaths = glob.glob('/Users/mcurrie/FireStats/data/*npy')
     
-    plotTempStats = False
+    plotTempStats = True
     plotFrames = False
-    tempThresh = 500.
+    tempThresh = 400.
     numLayers = 1
     bins = np.arange(1, (2*numLayers+1)**2 + 1, 1)
+    plotHists = True
+    plotProbs = True
+    plotBurnTimes = True
     
-    for filePath in filePaths:
-    
+    for filePath in filePaths[:1]:
+        fireName=filePath.split('/')[-1].strip('.npy')
         data = loadData(filePath)
         
         model = modelData(data, tempThresh)
         
-        savePath = '/Users/mcurrie/FireStats/plots/%s_combined_thresh500'%filePath.split('/')[-1].strip('.npy')
         
         if plotTempStats:
         
             maxTemp, minTemp, meanTemp, medianTemp, stdTemp = tempStats(data)
             
             # plotting the statistics
-            plotStat(maxTemp, 'max temp, overall max = %f'%maxTemp)
-            plotStat(minTemp, 'min temp, overall min = %f'%minTemp)
-            plotStat(meanTemp, 'mean temp, overall mean = %f'%meanTemp)
-            plotStat(medianTemp, 'median temp, overall median = %f'%medianTemp)
-            plotStat(stdTemp, 'std temp, overall std = %f'%stdTemp)
+            plotStat(maxTemp, 'max temp per frame, %s'%fireName, savePath='/Users/mcurrie/FireStats/plots/%s_maxTemp.pdf'%fireName)
+            plotStat(minTemp, 'min temp per frame, %s'%fireName, savePath='/Users/mcurrie/FireStats/plots/%s_minTemp.pdf'%fireName)
+            plotStat(meanTemp, 'mean temp per frame, %s'%fireName,savePath='/Users/mcurrie/FireStats/plots/%s_meanTemp.pdf'%fireName)
+            plotStat(medianTemp, 'median temp per frame, %s'%fireName,savePath='/Users/mcurrie/FireStats/plots/%s_medianTemp.pdf'%fireName)
+            plotStat(stdTemp, 'std temp per frame, %s'%fireName,savePath='/Users/mcurrie/FireStats/plots/%s_stdTemp.pdf'%fireName)
+            
+        if plotBurnTimes:
+            burnTimes = getBurnTimes(model)
+            avgBurnTime = np.mean(burnTimes)
+            plt.figure()
+            plt.plot(range(len(burnTimes)), burnTimes, '.')
+            plt.axhline(avgBurnTime, linewidth=8,color='#d62728')
+            plt.title('burn times per pixel, %s'%fireName)
+            plt.xlabel('pixel')
+            plt.ylabel('burn time')
+            plt.show()
+            plt.savefig('/Users/mcurrie/FireStats/plots/%s_%i_burnTimes.pdf'%(fireName, int(tempThresh)))
+            plt.close()
         
         # Make histogram that says how many neighbors lit a pixel on fire
         onFireCounts, unburntCounts = countingNeighbors(model, numLayers)
@@ -270,9 +290,15 @@ def main():
         
         unburntCounts = unburntCounts[np.where(unburntCounts > 0)]
         
+        if plotHists:
+            savePath = '/Users/mcurrie/FireStats/plots/%s_%i_hists'%(fireName, int(tempThresh))
+            makeHist([onFireCounts, unburntCounts], bins, title='%s, thresh=%f'%(fireName, tempThresh), save=True, savePath = savePath)
         
-        makeHist([onFireCounts, unburntCounts], bins, title=filePath, save=True, savePath = savePath)
-
+        
+        if plotProbs:
+            savePath = '/Users/mcurrie/FireStats/plots/%s_%i_probs'%(fireName, int(tempThresh))
+            makeProbPlots(onFireCounts, unburntCounts, title='%s, thresh=%i'%(fireName, int(tempThresh)),save=True, savePath = savePath)
+        
 
 main()
 
