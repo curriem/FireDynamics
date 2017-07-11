@@ -3,6 +3,8 @@
 """
 Created on Tue May 23 13:00:35 2017
 
+Edited on Tue Jun 11 12:36:41 2017
+
 @author: mcurrie
 
 
@@ -164,6 +166,21 @@ def burnTimeGrid(N, master, homogeneous=False):
     return grid
     
 def initialFire(N, fireType):
+    '''This sets up an initial fire from which the propagation will start. 
+    
+    Inputs:
+    ----------
+    
+    N
+        (int) the length of a side of the grid
+    
+    fireType
+        (str) the type of fire the user wants to start with. Can be 'line', 
+            'parabola', or 'point'. Any deviation defaults to 'point'.
+    
+    
+    '''
+    
     
     fireGrid = np.zeros((N, N))
     
@@ -182,7 +199,23 @@ def initialFire(N, fireType):
     return fireGrid
 
 def realProbs(frame):
+    ''' This function hard-codes some probabilities derived from the datasets 
+    13fsingle*.npy. 
     
+    
+    Inputs:
+    ----------
+    
+    frame
+        (2d numpy array) the starting frame for propagation calculations for this 
+        timestep
+        
+    Returns:
+    ----------
+    
+    newFrame 
+        (2d numpy array) the new frame for the next timestep with propagations calculated and plotted
+    '''
     
     realProbs = [0.0784, 0.104, 0.0915, 0.197, 0.235, 0.251, 0.226, 0.305]
     newFrame = np.copy(frame)
@@ -201,8 +234,23 @@ def realProbs(frame):
     #plotFrame(newFrame)
     return newFrame
                 
-def realInitGrid(filePath):
-    tempThresh = 500.
+def realInitGrid(filePath, tempThresh):
+    '''This function incorporates real data into the initial fire. It takes the first frame
+    of a real dataset, models it, and returns it for the initial propagation frame in CA
+    
+    Inputs:
+    ----------
+    
+    filePath
+        (str) the path to the real data you wish to use as the initial fire
+        
+    Returns:
+    ----------
+    
+    initGrid
+        (2d numpy array) an initial fire grid based on real data
+    
+    '''
     data = np.load(filePath)
     initGrid = np.zeros_like(data[0])
     initGrid[np.where(data[0] > tempThresh)] = 1
@@ -210,19 +258,84 @@ def realInitGrid(filePath):
     return initGrid
     
 def padwithnum(vector, pad_width, iaxis, kwargs):
+    '''pads a 2d numpy array with a number of the user's choice
+    
+    Inputs:
+    ----------
+    
+    vector
+        (ndarray) some vector the user wished to pad
+        
+    pad_with
+        (int) the number the user wishes to pad with
+        
+    Returns:
+    ----------
+    
+    vector
+        (ndarray) the padded vector
+        
+        
+    
+    '''
+    
     vector[:pad_width[0]] = 1
     vector[-pad_width[1]:] = 1
     return vector
 
 def padData(data):
-    padParam = 10
-    t, x, y = data.shape
+    '''Alternate method of padding a 3d array
+    
+    Inputs:
+    ----------
+    data
+        (3d numpy array) the data of interest
+        
+    Returns:
+    ----------
+    
+    padded 
+        (3d numpy array) the data, padded
+    
+    '''
+    
+    padParam = 10           # the number the user wishes to pad with
+    t, x, y = data.shape 
     data = np.nan_to_num(data)
     padded = np.zeros((t, x+padParam, y+padParam))
     padded[:, padParam/2:x+padParam/2, padParam/2:y+padParam/2] = data
     return padded
 
 def getProbs(frame, nextFrame, numLayers):
+    '''Generates the probabilities for real datasets
+    
+    Inputs:
+    ----------
+    
+    frame
+        (2d numpy array) frame for this timestep
+        
+    newFrame
+        (2d numpy array) frame for next timestep
+        
+    numLayers
+        (int) the number of layers that the fire is allowed to skip
+        
+    Returns:
+    ----------
+    
+    (litCount, unlitCount)
+        (tuple):
+            
+            litCount
+                the number of neighbors in the previous timestep that were on fire when the pixel of interest lit on fire
+            
+            unlitCount
+                the number of neighbors in the previous timestep that were on fire when the pixel of interest DID NOT light on fire
+            
+    
+    '''
+    
     
     x, y, = frame.shape
     litCount = []
@@ -260,23 +373,23 @@ def main():
     plotting=True  # plot at the end?
     save=False       # save the plots?
 
-    N = 50
-    numLayers = 1
-    masterBurnTime = 30
-    numTimesteps = 10
+    N = 50                     # the size of grid you wish to calculate for (this script will make an NxN grid)
+    numLayers = 1              # the number of layers that the fire can skip
+    masterBurnTime = 30        # the number of timesteps that a pixel is allowed to stay on fire
+    numTimesteps = 100         # the number of timesteps the user wishes to calculate for
     
     realDataPath = '/Users/mcurrie/FireDynamics/data/f3/f3_dataCube.npy'
-    savePath = '/Users/mcurrie/FireDynamics/data/CA/'
+    savePath = '/Users/mcurrie/FireDynamics/data/CA/'                     
     filePath = '/Users/mcurrie/FireDynamics/data/f3/f3_dataCube.npy'
     
     
-    #fireGrid = realInitGrid(filePath)
 
 
-    fireGrid = initialFire(N, 'point')
+    fireGrid = initialFire(N, 'point')      # initiate the fire
     data = np.load(realDataPath)
-    data = np.nan_to_num(data)
-    tempThresh = 500.
+    data = np.nan_to_num(data)              # changes NaNs to 0
+    tempThresh = 500.                       # temp that a cell is considered on fire
+    #fireGrid = realInitGrid(filePath, tempThresh)
 
    # model = modelData(data, tempThresh)
     
@@ -284,25 +397,23 @@ def main():
     
    # burnTimeGrid[np.where(model[-1] == 0)] = 0
     
-    burnTimes = burnTimeGrid(N, masterBurnTime, homogeneous=True)
+    burnTimes = burnTimeGrid(N, masterBurnTime, homogeneous=True)  # generates a grid of burn times (doesn't have to be homogeneous)
     
     fireTimeseries = [np.copy(fireGrid)]    # initiate a timeseries for later
     
-    #c
     
     for t in range(numTimesteps):
-        #print "COUNTER:", t+1
         
-        onFireInds = np.where(fireGrid > 0)
+        onFireInds = np.where(fireGrid > 0)  # gets the indices of the pixels that are on fire
         
-        fireGrid = realProbs(fireGrid)
-        fireGrid[onFireInds] += 1
+        fireGrid = realProbs(fireGrid)       # gets a new frame with new pixels that are on fire
+        fireGrid[onFireInds] += 1            # adds one to the pixels taht are on fire
 
         # check to see if any pixels are going to burn out and flag them accordingly
         burntInds = np.array(np.where(fireGrid > burnTimes))
         fireGrid[burntInds[0], burntInds[1]] = -1
 
-        # have to do this because python is stupid sometimes 
+        # have to do this because of memory allocation in python 
         temp = np.copy(fireGrid)
         fireTimeseries.append(temp)
         
@@ -310,7 +421,8 @@ def main():
     
     if save:
         #np.save(savePath+'CA_type=%s_layers=%i_burnTime=%i_wind=%s.npy'%(fireType, numLayers, masterBurnTime, str(windMag)), fireTimeseries)
-        np.save(savePath+'CA_real_analog_f3.npy', fireTimeseries)          
+        np.save(savePath+'CA_real_analog_f3.npy', fireTimeseries)       
+        
     if plotting:
         n = 1
         for frame in fireTimeseries:
