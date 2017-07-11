@@ -6,16 +6,14 @@ Created on Tue May 23 10:56:09 2017
 @author: mcurrie
 
 
-Want in this code: 
-    A histogram that says how many previously on fire neighbors lit a pixel on fire
-    A histogram that says how many previously on fire pixels failed to light a pixel on fire
-    Burn time distribution
+Edited Jul 11 2017
 
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
-import glob 
+import glob
+import scipy.stats as scistats 
 
 def loadData(filePath):
     """loads data in from a .npy array
@@ -305,14 +303,31 @@ def makeProbPlots(onFireCounts, unburntCounts, title=None, save=False, savePath=
     
     onFireUnique, onFireTally = np.unique(onFireCounts, return_counts=True)
     unburntUnique, unburntTally = np.unique(unburntCounts, return_counts=True)
+    
+    #CHANGED THIS FROM 
+    
     tallyArr0 = np.zeros(8)
     tallyArr1 = np.zeros(8)
     for one, two in zip(onFireUnique, onFireTally):
-        tallyArr1[one -1] = two
+        tallyArr1[one-1] = two
     for one, two in zip(unburntUnique, unburntTally):
-        tallyArr0[one -1] = two
+        tallyArr0[one-1] = two
     probs = tallyArr1.astype('float')/(tallyArr1 + tallyArr0)
+    
+    # below is for spotting 
+    
+#==============================================================================
+#     tallyArr0 = np.zeros(9)
+#     tallyArr1 = np.zeros(9)
+#     for one, two in zip(onFireUnique, onFireTally):
+#         tallyArr1[one] = two
+#     for one, two in zip(unburntUnique, unburntTally):
+#         tallyArr0[one] = two
+#     probs = tallyArr1.astype('float')/(tallyArr1 + tallyArr0)
+#==============================================================================
     plt.figure()
+    
+    # CHANGED THIS FROM plt.plot(np.arange(1,9,1), probs)
     plt.plot(np.arange(1,9,1), probs)
     plt.title(title)
     plt.xlabel('number of neighbors on fire')
@@ -323,21 +338,28 @@ def makeProbPlots(onFireCounts, unburntCounts, title=None, save=False, savePath=
     plt.close()
             
 
+
+
 def main():
     
-    filePaths = glob.glob('/Users/mcurrie/FireStats/data/*npy')
+    filePaths = glob.glob('/Users/mcurrie/FireStats/data/15fclump2*npy')
+    #filePaths = ['/Users/mcurrie/FireStats/data/aggPix/15fopen2_aggLevel10.npy']
     
     plotTempStats = False
     plotFrames = False
     tempThresh = 500.
     numLayers = 1
     bins = np.arange(1, (2*numLayers+1)**2 + 1, 1)
-    plotHistsAndProbs = True
-    plotBurnTimes = True
+    plotHistsAndProbs = False
+    plotBurnTimes = False
+    makeTrendline = True
     
     for filePath in filePaths:
         
+        
         fireName=filePath.split('/')[-1].strip('.npy')
+        
+        print fireName 
         
         data = loadData(filePath)
         
@@ -351,32 +373,93 @@ def main():
         
             maxTemp, minTemp, meanTemp, medianTemp, stdTemp = tempStats(data)
             
+            with open('/Users/mcurrie/FireStats/basicStats.txt', 'a') as file:
+                overallMax = np.max(maxTemp)
+                overallMin = np.min(minTemp)
+                overallMean = np.mean(meanTemp)
+                overallMedian = np.mean(medianTemp)
+                overallStd = np.mean(stdTemp)
+                file.write('%03f\t%03f\t%03f\t%03f\t%03f\n'%(overallMax, overallMin, overallMean, overallMedian, overallStd))
+                #file.write('%03d\t%03d\t%03d\t%03d\t%03d\n'%(str(overallMax), str(overallMin), str(overallMean), str(overallMedian), str(overallStd)))
+
             # plotting the statistics
-            plotStat(maxTemp, 'max temp per frame, %s'%fireName, savePath='/Users/mcurrie/FireStats/plots/%s_maxTemp.pdf'%fireName)
-            plotStat(minTemp, 'min temp per frame, %s'%fireName, savePath='/Users/mcurrie/FireStats/plots/%s_minTemp.pdf'%fireName)
-            plotStat(meanTemp, 'mean temp per frame, %s'%fireName,savePath='/Users/mcurrie/FireStats/plots/%s_meanTemp.pdf'%fireName)
-            plotStat(medianTemp, 'median temp per frame, %s'%fireName,savePath='/Users/mcurrie/FireStats/plots/%s_medianTemp.pdf'%fireName)
-            plotStat(stdTemp, 'std temp per frame, %s'%fireName,savePath='/Users/mcurrie/FireStats/plots/%s_stdTemp.pdf'%fireName)
+            #plotStat(maxTemp, 'max temp per frame, %s'%fireName, savePath='/Users/mcurrie/FireStats/plots/%s_maxTemp.pdf'%fireName)
+            #plotStat(minTemp, 'min temp per frame, %s'%fireName, savePath='/Users/mcurrie/FireStats/plots/%s_minTemp.pdf'%fireName)
+            #plotStat(meanTemp, 'mean temp per frame, %s'%fireName,savePath='/Users/mcurrie/FireStats/plots/%s_meanTemp.pdf'%fireName)
+            #plotStat(medianTemp, 'median temp per frame, %s'%fireName,savePath='/Users/mcurrie/FireStats/plots/%s_medianTemp.pdf'%fireName)
+            #plotStat(stdTemp, 'std temp per frame, %s'%fireName,savePath='/Users/mcurrie/FireStats/plots/%s_stdTemp.pdf'%fireName)
+#==============================================================================
+#             plt.figure()
+#             time = range(len(maxTemp))
+#             plt.plot(time, maxTemp, label='max')
+#             plt.plot(time, minTemp, label='min')
+#             plt.plot(time, meanTemp, label='mean')
+#             plt.plot(time, medianTemp, label='median')
+#             plt.plot(time, stdTemp, label='std dev')
+#             plt.legend(loc=4)
+#             plt.title('Basic Statistics for Fire 15fopen2')
+#             plt.xlabel('Frame (time)')
+#             plt.ylabel('Temperature (Celcius)')
+#             plt.savefig('/Users/mcurrie/FireStats/basicStats.pdf')
+#==============================================================================
         
         if plotBurnTimes:
             burnTimes = getBurnTimes(model)
             plt.figure()
             plt.imshow(burnTimes, interpolation='nearest', cmap='jet')
-            plt.title('burn times per pixel, %s, thresh=%i'%(fireName, int(tempThresh)))
+            plt.title('Burn Times Per Pixel for Fire 15fopen2')
+            #plt.title('Burn times per pixel, %s, thresh=%i'%(fireName, int(tempThresh)))
             plt.colorbar()
             plt.axis('off')
-            plt.savefig('/Users/mcurrie/FireStats/plots/%s_%i_burnTimes.pdf'%(fireName, int(tempThresh)))
+            plt.savefig('/Users/mcurrie/FireStats/burnTimes.pdf')
+            #plt.savefig('/Users/mcurrie/FireStats/plots/%s_%i_burnTimes.pdf'%(fireName, int(tempThresh)))
             plt.close()
         
         if plotHistsAndProbs:
-            onFireCounts, unburntCounts = countingNeighbors(model, numLayers)        
+            onFireCounts, unburntCounts = countingNeighbors(model, numLayers)   
+
+
+            # commented this out for spotting:
             onFireCounts = onFireCounts[np.where(onFireCounts > 0)]        
             unburntCounts = unburntCounts[np.where(unburntCounts > 0)]
-            savePath = '/Users/mcurrie/FireStats/plots/%s_%i_hists'%(fireName, int(tempThresh))
-            makeHist([onFireCounts, unburntCounts], bins, title='%s, thresh=%i'%(fireName, int(tempThresh)), save=True, savePath = savePath)        
-            savePath = '/Users/mcurrie/FireStats/plots/%s_%i_probs'%(fireName, int(tempThresh))
-            makeProbPlots(onFireCounts, unburntCounts, title='%s, thresh=%i'%(fireName, int(tempThresh)),save=True, savePath = savePath)
+            savePath = '/Users/mcurrie/FireStats/histEx10.pdf'
+            #savePath = '/Users/mcurrie/FireStats/plots/%s_%i_hists'%(fireName, int(tempThresh))
+            #makeHist([onFireCounts, unburntCounts], bins, title='%s, thresh=%i'%(fireName, int(tempThresh)), save=True, savePath = savePath)  
+            makeHist([onFireCounts, unburntCounts], bins, title='Neighbor Counts, Aggregation: 10x10', save=True, savePath = savePath)  
+            
+            savePath = '/Users/mcurrie/FireStats/probsEx10.pdf'
+            #savePath = '/Users/mcurrie/FireStats/plots/%s_%i_probs.pdf'%(fireName, int(tempThresh))
+            #makeProbPlots(onFireCounts, unburntCounts, title='%s, thresh=%i'%(fireName, int(tempThresh)),save=True, savePath = savePath)
+            makeProbPlots(onFireCounts, unburntCounts, title='Probabilities of Combustion, Aggregation: 10x10',save=True, savePath = savePath)
+        
+        if makeTrendline:
+            with open('/Users/mcurrie/FireStats/trendlines.txt', 'a') as file:
+                onFireCounts, unburntCounts = countingNeighbors(model, numLayers)   
+                onFireCounts = onFireCounts[np.where(onFireCounts > 0)]
+                unburntCounts = unburntCounts[np.where(unburntCounts > 0)]
+                
+                onFireUnique, onFireTally = np.unique(onFireCounts, return_counts=True)
+                unburntUnique, unburntTally = np.unique(unburntCounts, return_counts=True)
         
         
+                tallyArr0 = np.zeros(8)
+                tallyArr1 = np.zeros(8)
+                for one, two in zip(onFireUnique, onFireTally):
+                    tallyArr1[one-1] = two
+                for one, two in zip(unburntUnique, unburntTally):
+                    tallyArr0[one-1] = two
+                    
+                print tallyArr0, tallyArr1
+                
+                tallyArr0 = np.array([9019.,  5997.,  3533.,  1847.,  1021.,    42.])
+                tallyArr1 = np.array([98.,  78.,  63.,  31.,  13.,   7.])
+                probs = tallyArr1.astype('float')/(tallyArr1 + tallyArr0)
+                
+                x = np.arange(1, len(tallyArr0)+1, 1)
+                slope, intercept, r_value, p_value, std_err = scistats.linregress(x, probs)
+                print slope, intercept, r_value, p_value, std_err
+                #file.write('%f\t%f\t%f\t%f\t%f\n'%(slope, intercept, r_value, p_value, std_err))
+                
+
 main()
 
