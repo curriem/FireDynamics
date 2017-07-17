@@ -1,229 +1,82 @@
 \documentclass{article}
 \usepackage{graphicx}
 \usepackage{fullpage}
+\usepackage{hyperref}
+
+
 \begin{document}
 
-\title{Fire Dynamics Repository}
-\author{M. Currie and B. Quaife}
+\title{Fire Dynamics Repository Manual}
+\author{M. Currie \\ \href{mailto:mileshcurrie@gmail.com}{mileshcurrie@gmail.com} }
 \maketitle
 
-%\abstract
+\section{Preface}
+This manual is meant to provide a quick introduction to the ``FireDynamics'' repository I have created on GitHub. This is by no means a step-by-step quide on how to run the scripts, however it will focus on the big picture ideas of how things run. I have made it a point to document all of the scripts very well, so the hope is that with this manual and the documentation in the code, a user should be able to run everything with little instruction. There will be some details that I will unintentionally leave out, so I invite the user to contact me with any questions if they feel that a certain section is not intuitive enough.  
 
-%This document is meant to make sense of the plots, movies, and scripts located in this repository. The discussions in this document will be organized into four sections: 1) real infrared image data, 2) dynamic mode decomposition (DMD) for the real IR data, 3)  cellular automata (CA) to model the spread of fires, and 4) fire box data, results, etc.
+\section{firePropagationModel.py}
+\subsection{Description}
 
-%\pagebreak
-\section{Real IR Data}
-There are three real data sets that we are working with in the subsequent analyses. 
-The datasets are designated 13fsingle1, 13fsingle2, and 13fsingle3, however 
-henceforth they shall be referred to as Fire 1, Fire 2, and Fire 3, respectively. Here we 
-present basic statistics for each of the three datasets. It is important to note that all 
-temperatures are in Celsius.
+This script models the propagation of a fire based on
+heuristic rules that were deduced by observation. The
+driving factor in the propagation is the probability of
+a cell that is on fire to light one of its neighbors on
+fire. If one inspects the functions that have to do with
+probability, the made-up heuristic rules can be seen
+clearly. These rules are always changing, so this document
+will be edited with more detail later.
+\par
+The idea for this model is to start out with some initial
+fire, which can be specified by the user to be a point, line,
+parabola, or the initial frame from a real dataset and use
+the heuristic probability rules to let the fire propagate for
+the specified number of timesteps. In addition to the parameter
+for the number of timesteps, the other parameters that can be
+specified are how big the user wants the propagation frame to be
+(N), how far the fire can spread in one timestep (numLayers), the
+number of timesteps that a cell can stay on fire for (masterBurnTime),
+and two flags that specify whether the user wants to plot
+and save the resulting images.
+\par
+The basic structure of this script is as follows: The script loops
+over the number of specified timesteps and for each timestep, it
+calculates a new frame in which the fire has propagated.
+For each iteration, the script looks for pixels that are on fire,
+which are flagged by a positive integer. For each of the on fire
+pixels, the script ``rolls a dice'' to determine if its neighbors
+light on fire in the next frame. The probabilities are based on the
+distance from the pixel of interest and some master probability that
+can be spceified by the user. If some on fire pixel reaches the number
+specified with the masterBurnTime parameter, the pixel is flagged as
+a ``-1'', which means that pixel is burnt and can no longer
+light on fire.
+\par
+After the script has run through its iterations, it plots and saves
+the images (if these flags are set to ``True''), which shows
+the propagation.
 
-All of the datasets were reduced from their original forms to get 
-rid of frames where there was significant readout noise and frames
-where nothing was happening (e.g. frames where the fire had already
-passed: static frames). The frame numbers used are specified in each respective section
-
-\begin{table}
-
-\begin{tabular}{|c|c|c|c|c|c|c|}
-\hline
- & Mean Temp & Median Temp & Std Dev & Max Temp & Min Temp & Timestep (s) \\
-\hline
-Fire 1 & 301.939 & 221.310 & 128.379 & 890.108 & 199.998 & 1.000 \\
-\hline
-Fire 2 & 218.188 & 159.911 & 137.907 & 921.466 & 99.9974 & 1.000 \\
-\hline
-Fire 3 & 267.044 & 199.998 & 113.061 & 849.827 & 199.998 & 1.000 \\
-\hline
-\end{tabular}
-\centering
-\caption{This table shows some basic values for each of the fires. These are overall values, meaning that it looks at all data from all timesteps.}
-\end{table}
-
-\subsection{Fire 1}
-
-
-\begin{table}
-\centering
-\begin{tabular}{|c|c|}
-\hline
-Data range used & Frames 60 through 300 \\
-\hline 
-               & 32, 72, 115, 136, 137, 156, 177, 197, 217, 238, \\
-               & 258, 278, 298, 318, 339, 359, 379, 399, 420, 459,\\
-Garbage frames & 481, 507, 534, 554, 574, 594, 614, 634, 655, 675,\\
-               & 695, 715, 735, 755, 775, 795, 815, 835, 856, 876,\\
-               & 896, 916, 936, 956, 976, 997, 1018, 1038, 1058, 1098\\
-\hline
-\end{tabular} 
-
-\caption{Good frames that were used in our analyses for Fire 1 and frames that were thrown out due to significant read noise. Indexing begins at 1.}
-\end{table}
+\subsection{Companion Scripts}
+There are two companion scripts to this one: makeImages.py and makeMovies.py. The functions of these scripts are just as intuitive as they sound. The former takes in the path to the numpy files that were generated from the model and creates/saves images of them. The keyword arguments in the creation of the images have been specifically tuned for fires to make them both visually appealing and consistent. The latter script takes the images generated and uses ffmpeg to create an mp4 movie so the user can see the fire propagate. 
 
 
 
-\begin{figure}[ht] 
-\centering
-  \label{ fig7} 
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.1\linewidth]{../plots/f1_maxtemp.pdf} 
-    \caption{Maximum temperature time series for Fire 1} 
-    \vspace{4ex}
-  \end{minipage}%%
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.1\linewidth]{../plots/f1_meantemp.pdf} 
-    \caption{Mean temperature time series for Fire 1} 
-    \vspace{4ex}
-  \end{minipage} 
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.1\linewidth]{../plots/f1_mediantemp.pdf} 
-    \caption{Median temperature time series for Fire 1} 
-    \vspace{4ex}
-  \end{minipage}%% 
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.1\linewidth]{../plots/f1_stdtemp.pdf} 
-    \caption{Standard deviation time series for Fire 1} 
-    \vspace{4ex}
-  \end{minipage} 
-\end{figure}
+\section{DMD\_reconstruction.py}
 
+This script was originally created by Alessandro Alla to perform a dynamic mode decomposition (DMD) analysis on the real data that is available. The script was originally written in MATLAB, but I translated it to python to make it run better on my machine. Presently, it is unclear what we are going to accomplish using this type of analysis, therefore, I won't elaborate much on the subject. If the user is interested enough, I would suggest reading up on DMD to see some of its capabilities. 
 
-\pagebreak
+\section{ThermalCubeAnalysis.py}
+Again, this script was not written by me. It was aquired from Kevin Speer to analyze the data from the fire box experiment that we have occasionally conducted. This is a simple script that takes in a csv file and plots the temperature and heat flux from the fire. In theory, once the gas sensors on the box are up and running, this script will also plot statistics for the humidity in the air and the oxygen levels in the air. At the time of writing, the latter features were not up and running on the fire box.
 
-\subsection{Fire 2}
+\section{interpretDMD.py}
+This script is basically an amalgamation of the scripts ``makeImages.py'' and ``makeMovies.py'' but tailored to the results of the DMD reconstruction code. 
 
+\section{aggregatePixels.py}
 
+\section{computeDiffCoeff.py}
 
-\begin{table}
-\centering
-\begin{tabular}{|c|c|}
-\hline
-Data range used & Frames 9 through 200 \\
-\hline 
-Garbage Frames & None \\
-\hline
-\end{tabular} 
+\section{fireStats.py}
 
+\section{Complete\_Video\_Analysis.py}
 
-\caption{Good frames that were used in our analyses for Fire 2. No frames were thrown out die to read noise. Indexing begins at 1.}
-\end{table}
-
-\begin{figure}[ht] 
-\centering
-  \label{ fig7} 
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.1\linewidth]{../plots/f2_maxtemp.pdf} 
-    \caption{Maximum temperature time series for Fire 2} 
-    \vspace{4ex}
-  \end{minipage}%%
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.1\linewidth]{../plots/f2_meantemp.pdf} 
-    \caption{Mean temperature time series for Fire 2} 
-    \vspace{4ex}
-  \end{minipage} 
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.1\linewidth]{../plots/f2_mediantemp.pdf} 
-    \caption{Median temperature time series for Fire 2} 
-    \vspace{4ex}
-  \end{minipage}%% 
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.1\linewidth]{../plots/f2_stdtemp.pdf} 
-    \caption{Standard deviation time series for Fire 2} 
-    \vspace{4ex}
-  \end{minipage} 
-
-\end{figure}
-
-\pagebreak
-
-\subsection{Fire 3}
-
-
-
-\begin{table}
-\centering
-\begin{tabular}{|c|c|}
-\hline
-Data range used & Frames 45 through 220 \\
-\hline 
-Garbage Frames & 10, 30, 50, 71, 91, 112, 132, 152, 173, 213, \\
-               & 233, 253, 273, 294, 314 \\
-
-\hline
-\end{tabular} 
-
-\caption{Good frames that were used in our analyses for Fire 3 and frames that were thrown out due to significant read noise. Indexing begins at 1.}
-\end{table}
-
-
-\begin{figure}[ht] 
-\centering
-  \label{ fig7} 
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.05\linewidth]{../plots/f3_maxtemp.pdf} 
-    \caption{Maximum temperature time series for Fire 3} 
-    \vspace{4ex}
-  \end{minipage}%%
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.05\linewidth]{../plots/f3_meantemp.pdf} 
-    \caption{Mean temperature time series for Fire 3} 
-    \vspace{4ex}
-  \end{minipage} 
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.05\linewidth]{../plots/f3_mediantemp.pdf} 
-    \caption{Median temperature time series for Fire 3} 
-    \vspace{4ex}
-  \end{minipage}%% 
-  \begin{minipage}[b]{0.5\linewidth}
-    \centering
-    \includegraphics[width=1.05\linewidth]{../plots/f3_stdtemp.pdf} 
-    \caption{Standard deviation time series for Fire 3} 
-    \vspace{4ex}
-  \end{minipage} 
-
-\end{figure}
-
-\section{Dynamic Mode Decomposition}
-
-
-\begin{table}
-\centering
-\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
-\hline
-Number of SVs & Max Temp & Min Temp & Mean Temp & Med Temp & Std Dev & Err Mean & Err Med & Err Std Dev \\
-\hline
-10 & 509.0 & 0 & 201.7 & 194.0 & 76.79 & 82.38 & 41.99 & 81.88 \\
-\hline
-40 & Inf & -2 & Inf & 214.0 & Inf & Inf & 15.37 & Inf \\
-\hline
-70 & Inf & -2 & Inf & 212.0 & Inf & Inf & 10.99 & Inf \\
-\hline
-100 & Inf & -2 & Inf & 210.0 & Inf & Inf & 9.75 & Inf \\
-\hline
-130 & Inf & -2 & Inf & 208.0 & Inf & Inf & 8.99 & Inf \\
-\hline 
-160 & Inf & -2 & Inf & 207.0 & Inf & Inf & 8.00 & Inf \\
-\hline 
-190 & Inf & -2 & Inf & 205.0 & Inf & Inf & 8.80 & Inf \\
-\hline
-220 & Inf & -Inf & Inf & 259.0 & Inf & Inf & 35.0 & Inf \\
-\hline
-
-\end{tabular}
-\caption{hi this is a test}
-\end{table}
 
 \end{document}
 
