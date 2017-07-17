@@ -163,25 +163,24 @@ def main():
                     plt.show()
                     plt.close()
                     n += 1
-#==============================================================================
-#             z = np.dot(dmdbasis, sol_dmd)
-#             sol_dmd_full = z.real
-#             
-#             err = np.linalg.norm(sol_dmd_full - data) / np.linalg.norm(data)
-#             error[count] = err
-#             count += 1
-#             sol_dmd_full = sol_dmd_full.T
-#             temp = []
-#             for frame in sol_dmd_full:
-#                 temp.append(frame.reshape(x,y))
-#             temp = np.array(temp)
-#             
-#             np.save('/Users/mcurrie/FireStats/DMD/%s_reducedSol_%s.npy'%  \
-#                     (fireName, str(i).zfill(3)), temp)
-#             
-#         np.save('/Users/mcurrie/FireStats/DMD/%s_errors.npy'%fireName, error)    
-#         
-#==============================================================================
+
+            z = np.dot(dmdbasis, sol_dmd)
+            sol_dmd_full = z.real
+           
+            err = np.linalg.norm(sol_dmd_full - data) / np.linalg.norm(data)
+            error[count] = err
+            count += 1
+            sol_dmd_full = sol_dmd_full.T
+            temp = []
+            for frame in sol_dmd_full:
+                temp.append(frame.reshape(x,y))
+            temp = np.array(temp)
+             
+            np.save('/Users/mcurrie/FireStats/DMD/%s_reducedSol_%s.npy'%  \
+                     (fireName, str(i).zfill(3)), temp)
+             
+        np.save('/Users/mcurrie/FireStats/DMD/%s_errors.npy'%fireName, error)    
+         
         if plotSV:
             X = data[perm[0:int(sizecs)], 0:-1]
             plotSingVals(X, fireName)
