@@ -2,7 +2,7 @@
 \usepackage{graphicx}
 \usepackage{fullpage}
 \usepackage{hyperref}
-
+\usepackage{listings}
 
 \begin{document}
 
@@ -71,12 +71,46 @@ This script is basically an amalgamation of the scripts ``makeImages.py'' and ``
 
 \section{aggregatePixels.py}
 
+This script takes in a three dimensional numpy file containing temperature data for a fire and aggregates pixels together in square blocks. For example, if the user sets the aggregation level to three for a dataset, the script will group together blocks of dimension three by three pixels, take the maximum value of that group, and assign it to a new cell in a new dataset. This effectively makes the resolution worse, which in turn makes the subsequent scripts run faster and may treat spotting effects better. 
+
 \section{computeDiffCoeff.py}
+
+This script is purely experimental and should not be assumed to produce reliable results. At the time of writing, this was mostly abandoned as an initial attempt at calculating the diffusion coefficients for a given timeseries dataset. I will not elaborate further as this is not actively being worked on. 
+
 
 \section{fireStats.py}
 
+This script is the main analysis script that has been under development during the summer of 2017. This script performs several analyses: It gives some basic statistics for a given dataset, calculates the burn times for each pixel in the dataset, calculates the probability of a cell lighting on fire, and counts the number of cells surrounding a pixel of interest that are on fire. 
+\subsection{Basic Statistics}
+This section of the script produces plots of the most basic statistics for a dataset. For each frame, the script calculates the mean, median, minimum, maximum, and standard deviation temperature values. After this has been calculated for all of the frames, the script plots all of these values, with frame number on the x-axis and statistic (temperature) value on the y-axis. If the user wants to run this section of the script, they should set the ``plotTempStats'' flag to ``True''.
+
+
+\subsection{Burn Times}
+
+This section of the script calculates how long each pixel stays on fire. Each pixel carries with it an integer value that signifies how many timesteps that pixel has been on fire for at the end of the timeseries. The script then plots these values as a heat map: redder colors signify pixels that stay on fire for longer and bluer pixels signify pixels that had relatively short burn times. If the user wants to run this section of the script, they should set the ``plotBurnTimes'' flag to ``True''. 
+
+\subsection{Counts}
+
+This section of the script loops over all of the pixels in a frame in a certain timestep and looks in the immediate vicinity of a pixel for other pixels that were on fire in the previous timestep that might have lit the pixel of interest on fire. This counts up the surrounding burning pixels and separates the two cases of whether or not the pixel of interest lit on fire because of these pixels. In the end, there will be two lists: one which counts the number of neighboring pixels that DID light the pixel of interest on fire and one which counts the number of neighboring pixels that DID NOT light the pixel of interest on fire. The script then bins these lists by count and displays a histogram. If the user wants to run this section of the script, they should set the ``plotHistsAndProbs'' to ``True''. 
+
+\subsection{Combustion Probabilities}
+
+This section of the script takes the lists of counts mentioned in section 8.3 and uses them to calculate probabilities by the formula:
+
+
+
+If the user wants to run this section of the script, they should set the ``plotHistsAndProbs'' to ``True''. 
+
 \section{Complete\_Video\_Analysis.py}
+This script was compiled and created by Elizabeth Tilly and Scott Goodrick. This program is a comprehensive video analysis script designed specifically for analyzing smoke and fire fluid dynamics. Included are particle imaging velocimetry, principal component analysis, and graphing programs. See the script for more documentation. My recommended running example:
 
+\begin{lstlisting}
+import Complete_Video_Analysis as cva
 
+cva.pivprocess('/Path/To/MP4',1,3500,199.25,24.,'/Path/To/Save/Directory/%05d.npz', '/Path/To/Save/Directory/%05d.png',startframe=0, contouralpha=0.65,vertvelmin=-8,vertvelmax=8,hozvelmin=0,hozvelmax=6)        
+
+\end{lstlisting}
+
+This will produce velocity vectors for each frame in a dataset.
 \end{document}
 
